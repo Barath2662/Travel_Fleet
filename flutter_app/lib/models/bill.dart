@@ -16,9 +16,9 @@ class BillModel {
   factory BillModel.fromJson(Map<String, dynamic> json) {
     return BillModel(
       id: json['_id'] as String,
-      vehicleNumber: json['vehicleNumber'] as String,
-      totalAmount: (json['totalAmount'] as num).toDouble(),
-      payableAmount: (json['payableAmount'] as num).toDouble(),
+      vehicleNumber: json['vehicleNumber'] as String? ?? 'N/A',
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
+      payableAmount: (json['payableAmount'] as num?)?.toDouble() ?? 0,
       paymentStatus: json['paymentStatus'] as String? ?? 'pending',
     );
   }
