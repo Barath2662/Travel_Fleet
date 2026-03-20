@@ -13,6 +13,8 @@ class BillingPage extends ConsumerStatefulWidget {
 }
 
 class _BillingPageState extends ConsumerState<BillingPage> {
+  static final RegExp _mongoIdRegex = RegExp(r'^[a-fA-F0-9]{24}$');
+
   final _tripId = TextEditingController();
   final _vehicleNumber = TextEditingController();
   final _tripDetails = TextEditingController();
@@ -52,30 +54,38 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   }
 
   Future<void> _createBill() async {
-    if (_tripId.text.trim().isEmpty || _vehicleNumber.text.trim().isEmpty || _startKm.text.trim().isEmpty || _endKm.text.trim().isEmpty || _ratePerKm.text.trim().isEmpty) {
-      _show('Trip, vehicle, KM values and rate are required');
-      return;
-    }
+    final tripIdInput = _tripId.text.trim();
+    final vehicleNumber = _vehicleNumber.text.trim();
+    final tripDetails = _tripDetails.text.trim();
+    final tripId = _mongoIdRegex.hasMatch(tripIdInput) ? tripIdInput : null;
+    final startKm = double.tryParse(_startKm.text) ?? 0;
+    final endKm = double.tryParse(_endKm.text) ?? 0;
+    final ratePerKm = double.tryParse(_ratePerKm.text) ?? 0;
 
-    await ref.read(appStateProvider.notifier).createBill({
-      'tripId': _tripId.text.trim(),
-      'billDate': DateTime.now().toIso8601String(),
-      'tripDate': DateTime.now().toIso8601String(),
-      'vehicleNumber': _vehicleNumber.text.trim(),
-      'tripDetails': _tripDetails.text.trim().isEmpty ? 'Business trip' : _tripDetails.text.trim(),
-      'startKm': double.tryParse(_startKm.text) ?? 0,
-      'endKm': double.tryParse(_endKm.text) ?? 0,
-      'ratePerKm': double.tryParse(_ratePerKm.text) ?? 0,
-      'dayRent': double.tryParse(_dayRent.text) ?? 0,
-      'hourRent': double.tryParse(_hourRent.text) ?? 0,
-      'numberOfDays': 1,
-      'numberOfHours': 0,
-      'driverBata': double.tryParse(_driverBata.text) ?? 0,
-      'tollCharges': double.tryParse(_toll.text) ?? 0,
-      'permitCharges': double.tryParse(_permit.text) ?? 0,
-      'parkingCharges': double.tryParse(_parking.text) ?? 0,
-      'advanceReceived': double.tryParse(_advance.text) ?? 0,
-    });
+    try {
+      await ref.read(appStateProvider.notifier).createBill({
+        if (tripId != null) 'tripId': tripId,
+        'billDate': DateTime.now().toIso8601String(),
+        'tripDate': DateTime.now().toIso8601String(),
+        if (vehicleNumber.isNotEmpty) 'vehicleNumber': vehicleNumber,
+        'tripDetails': tripDetails.isEmpty ? 'Business trip' : tripDetails,
+        'startKm': startKm,
+        'endKm': endKm,
+        'ratePerKm': ratePerKm,
+        'dayRent': double.tryParse(_dayRent.text) ?? 0,
+        'hourRent': double.tryParse(_hourRent.text) ?? 0,
+        'numberOfDays': 1,
+        'numberOfHours': 0,
+        'driverBata': double.tryParse(_driverBata.text) ?? 0,
+        'tollCharges': double.tryParse(_toll.text) ?? 0,
+        'permitCharges': double.tryParse(_permit.text) ?? 0,
+        'parkingCharges': double.tryParse(_parking.text) ?? 0,
+        'advanceReceived': double.tryParse(_advance.text) ?? 0,
+      });
+      _show('Bill generated successfully');
+    } catch (error) {
+      _show(error.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   void _show(String message) {

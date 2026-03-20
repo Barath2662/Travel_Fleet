@@ -47,7 +47,21 @@ class ApiService {
       return body;
     }
 
-    final message = body is Map<String, dynamic> ? (body['message'] ?? 'Request failed') : 'Request failed';
+    String message = 'Request failed';
+    if (body is Map<String, dynamic>) {
+      message = (body['message']?.toString() ?? 'Request failed');
+      final errors = body['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        if (first is Map<String, dynamic>) {
+          final detail = first['msg']?.toString();
+          final field = first['path']?.toString();
+          if (detail != null && detail.isNotEmpty) {
+            message = field != null && field.isNotEmpty ? '$field: $detail' : detail;
+          }
+        }
+      }
+    }
     throw Exception(message);
   }
 }
