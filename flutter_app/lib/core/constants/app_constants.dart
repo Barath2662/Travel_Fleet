@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 class AppConstants {
   static const appName = 'Travel Fleet';
 
+  // Production backend URL
+  static const String productionBaseUrl = 'https://travel-fleet.onrender.com/api';
+
   static final String baseUrl = () {
     const fromEnv = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     if (fromEnv.isNotEmpty) {
@@ -13,10 +16,7 @@ class AppConstants {
       return fromEnv;
     }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000/api';
-    }
-
-    return 'http://127.0.0.1:5000/api';
+    // Use production URL by default for APK builds
+    return productionBaseUrl;
   }();
 }
