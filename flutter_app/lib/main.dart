@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
+import 'features/auth/login_page.dart';
+import 'features/dashboard/dashboard_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'routes/app_router.dart';
@@ -25,7 +27,7 @@ class TravelFleetApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      initialRoute: auth.token == null ? AppRouter.login : AppRouter.dashboard,
+      home: auth.token != null ? const DashboardPage() : const LoginPage(),
       onGenerateRoute: AppRouter.generateRoute,
     );
   }

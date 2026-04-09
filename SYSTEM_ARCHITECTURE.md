@@ -1,0 +1,489 @@
+# Travel Fleet - System Architecture
+
+## 🏗️ Application Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      TRAVEL FLEET APP                            │
+│                     (Flutter Mobile App)                         │
+└─────────────────────────────────────────────────────────────────┘
+
+                              │
+                ┌─────────────┴─────────────┐
+                │                           │
+        ┌───────▼────────┐       ┌───────────▼────────┐
+        │  Local Storage │       │   Backend API      │
+        │ (Preferences)  │       │  (Node.js/Express) │
+        └────────────────┘       └────────┬───────────┘
+                                          │
+                                ┌─────────▼────────┐
+                                │   MongoDB DB     │
+                                └──────────────────┘
+```
+
+---
+
+## 📱 User Flow Architecture
+
+```
+┌──────────────┐
+│  App Start   │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────────────────┐
+│  Check Auth Token        │
+│  (SharedPreferences)     │
+└──────┬───────────────────┘
+       │
+       ├─────────────┬─────────────┐
+       │             │             │
+    No Token    Token Valid   Token Expired
+       │             │             │
+       │             ▼             │
+       │      ┌────────────────┐   │
+       │      │ Get User Role  │   │
+       │      └────┬───┬───┬───┘   │
+       │           │   │   │       │
+       │        Owner Emp Driver   │
+       │           │   │   │       │
+       │      ┌────▼─┐ │ ┌─▼─┐   │
+       │      │      ├─┴─┤  │   │
+       ▼      ▼      │   ▼  ▼   ▼
+   ┌────────────────────────────────────┐
+   │      LOGIN SCREEN                  │
+   │   ┌──────────────────────────┐     │
+   │   │ Email & Password Input   │     │
+   │   │ ✓ Validation            │     │
+   │   │ ✓ Error Handling        │     │
+   │   └──────────────────────────┘     │
+   └────────────────────────────────────┘
+           │         │         │
+           ▼         ▼         ▼
+    ┌───────────┬──────────┬──────────┐
+    │   Owner   │ Employee │  Driver  │
+    │ Dashboard │ Dashboard│ Dashboard│
+    └───────────┴──────────┴──────────┘
+```
+
+---
+
+## 🎯 Dashboard Architecture
+
+### Owner Dashboard
+```
+┌─────────────────────────────────────────┐
+│      Owner/Admin Dashboard              │
+│ ┌────────────────────────────────────┐  │
+│ │ Header: Travel Fleet • Owner       │  │
+│ └────────────────────────────────────┘  │
+│                                          │
+│ ┌──────────────┬──────────────────────┐  │
+│ │              │                      │  │
+│ │   Drawer     │  Dashboard Content   │  │
+│ │  (Mobile)    │  (scrollable)        │  │
+│ │              │                      │  │
+│ │ ┌──────────┐ │  ┌────────────────┐  │  │
+│ │ │ Home     │ │  │ Home Stats     │  │  │
+│ │ │ Trips    │ │  │ Trips List     │  │  │
+│ │ │ Vehicles │ │  │ Vehicles Found │  │  │
+│ │ │ Drivers  │ │  │ Drivers (10)   │  │  │
+│ │ │ Invoices │ │  │ Earnings       │  │  │
+│ │ │ Payments │ │  │ + more...      │  │  │
+│ │ │ Users    │ │  └────────────────┘  │  │
+│ │ │ Alerts   │ │                      │  │
+│ │ │ Settings │ │                      │  │
+│ │ │ Logout   │ │                      │  │
+│ │ └──────────┘ │                      │  │
+│ │              │                      │  │
+│ └──────────────┴──────────────────────┘  │
+└─────────────────────────────────────────┘
+    Blue Theme (#2563EB) - Authority
+    Max 9 menu items
+    Full control access
+```
+
+### Employee Dashboard
+```
+┌─────────────────────────────────────────┐
+│     Employee Dashboard                  │
+│ ┌────────────────────────────────────┐  │
+│ │ Header: Travel Fleet • Employee    │  │
+│ └────────────────────────────────────┘  │
+│                                          │
+│ ┌──────────────┬──────────────────────┐  │
+│ │              │                      │  │
+│ │   Drawer     │  Dashboard Content   │  │
+│ │  (Mobile)    │  (scrollable)        │  │
+│ │              │                      │  │
+│ │ ┌──────────┐ │  ┌────────────────┐  │  │
+│ │ │ Home     │ │  │ Home Stats     │  │  │
+│ │ │ Trips    │ │  │ Trip Details   │  │  │
+│ │ │ Vehicles │ │  │ Driver Status  │  │  │
+│ │ │ Drivers  │ │  │ Billing Info   │  │  │
+│ │ │ Invoices │ │  │ Payments Due   │  │  │
+│ │ │ Payments │ │  │ + more...      │  │  │
+│ │ │ Alerts   │ │  └────────────────┘  │  │
+│ │ │ Settings │ │                      │  │
+│ │ │ Logout   │ │                      │  │
+│ │ └──────────┘ │                      │  │
+│ │              │                      │  │
+│ └──────────────┴──────────────────────┘  │
+└─────────────────────────────────────────┘
+    Cyan Theme (#06B6D4) - Turquoise
+    Max 8 menu items
+    Operational access
+```
+
+### Driver Dashboard
+```
+┌─────────────────────────────────────────┐
+│      Driver Dashboard                   │
+│ ┌────────────────────────────────────┐  │
+│ │ Header: Travel Fleet • Driver      │  │
+│ └────────────────────────────────────┘  │
+│                                          │
+│ ┌──────────────┬──────────────────────┐  │
+│ │              │                      │  │
+│ │   Drawer     │  Dashboard Content   │  │
+│ │  (Mobile)    │  (scrollable)        │  │
+│ │              │                      │  │
+│ │ ┌──────────┐ │  ┌────────────────┐  │  │
+│ │ │ Home     │ │  │ Trip Alerts    │  │  │
+│ │ │ My Trips │ │  │ My Route       │  │  │
+│ │ │ Earnings │ │  │ GPS Location   │  │  │
+│ │ │ Alerts   │ │  │ Trip Time      │  │  │
+│ │ │ Settings │ │  │ Distance (km)  │  │  │
+│ │ │ Logout   │ │  │ Earnings Today │  │  │
+│ │ │          │ │  │ + more...      │  │  │
+│ │ │          │ │  └────────────────┘  │  │
+│ │ │          │ │                      │  │
+│ │ └──────────┘ │                      │  │
+│ │              │                      │  │
+│ └──────────────┴──────────────────────┘  │
+└─────────────────────────────────────────┘
+    Orange Theme (#F97316) - Action-oriented
+    Max 5 menu items
+    Trip execution focus
+```
+
+---
+
+## 🗺️ Feature Access Map
+
+```
+                        ┌─────────────────────┐
+                        │   User Roles        │
+                        └──────┬──┬──────┬────┘
+                               │  │      │
+                    ┌──────────┘  │      └─────────────┐
+                    │             │                    │
+            ┌───────▼──┐   ┌──────▼──┐        ┌────────▼──┐
+            │  Owner   │   │Employee │        │  Driver   │
+            └───────┬──┘   └────┬────┘        └────┬──────┘
+                    │           │                  │
+        ┌───────────┼───────────┼──────────────────┼────────────┐
+        │           │           │                  │            │
+    ┌───▼──┐   ┌────▼───┐  ┌────▼────┐  ┌────────▼────┐   ┌───▼───┐
+    │Home  │   │Trips   │  │Vehicles │  │GPS Location │   │Leave  │
+    └──────┘   └────────┘  └─────────┘  └─────────────┘   └───────┘
+        │           │           │              │              │
+    ✓ ✓ ✓      ✓ ✓ ✓      ✓ ✓ ✓          ✓ (D)          ✓ ✓ ✓
+   O E D      O E D      O E D                 │         O E D
+```
+
+---
+
+## 🔐 Permission & Role Flow
+
+```
+┌────────────────────────────────────┐
+│   User Attempts Action             │
+└────────────────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────────────┐
+│   Check UserRole Permissions       │
+│   (Frontend Validation)            │
+│                                    │
+│   if role.canScheduleTrip { ... }  │
+│   if role.canManageDrivers { ... } │
+└────┬───────────────────────────────┘
+     │
+     ├─ Permission Denied ──► Show Error Message
+     │
+     └─ Permission Granted ──► Proceed to UI
+                                  │
+                                  ▼
+                    ┌────────────────────────────┐
+                    │   API Call Attempt         │
+                    │   (Send Auth Token)        │
+                    └────┬───────────────────────┘
+                         │
+                         ▼
+              ┌──────────────────────────┐
+              │   Backend Validation     │
+              │   (Server-side Check)    │
+              └────┬────────────────────┘
+                   │
+                   ├─ Invalid Token ──────► 401 Unauthorized
+                   │
+                   ├─ Role Mismatch ──────► 403 Forbidden
+                   │
+                   └─ Access Granted ─────► 200 Success
+                                              Return Data
+```
+
+---
+
+## 🛠️ Technical Layer Stack
+
+```
+┌─────────────────────────────────────────────────┐
+│               PRESENTATION LAYER                │
+│  ┌───────────┬───────────┬───────────────────┐  │
+│  │   UI      │ Widgets   │ Enhanced Cards    │  │
+│  │ Screens   │ Pages     │ Animations        │  │
+│  └───────────┴───────────┴───────────────────┘  │
+└──────────────────────┬──────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────┐
+│            STATE MANAGEMENT LAYER               │
+│  ┌──────────────────────────────────────────┐   │
+│  │    Riverpod Providers                    │   │
+│  │  ├─ authProvider                         │   │
+│  │  ├─ themeModeProvider                    │   │
+│  │  └─ appStateProvider                     │   │
+│  └──────────────────────────────────────────┘   │
+└──────────────────────┬──────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────┐
+│            BUSINESS LOGIC LAYER                 │
+│  ┌──────────────────────────────────────────┐   │
+│  │    Services & Helpers                    │   │
+│  │  ├─ LocationService (GPS)                │   │
+│  │  ├─ ErrorHandler                         │   │
+│  │  ├─ AppValidator                         │   │
+│  │  └─ RoleBasedHelper                      │   │
+│  └──────────────────────────────────────────┘   │
+└──────────────────────┬──────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────┐
+│             DATA ACCESS LAYER                   │
+│  ┌──────────────────────────────────────────┐   │
+│  │    API Service & Storage                 │   │
+│  │  ├─ ApiService (HTTP)                    │   │
+│  │  ├─ AuthStorageService (SharedPrefs)     │   │
+│  │  └─ Models (Data Classes)                │   │
+│  └──────────────────────────────────────────┘   │
+└──────────────────────┬──────────────────────────┘
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+        ▼                             ▼
+  ┌────────────┐              ┌─────────────┐
+  │ Backend    │              │   Local     │
+  │   API      │              │  Storage    │
+  │(Node.js)   │              │(Android)    │
+  └────────────┘              └─────────────┘
+        │
+        ▼
+  ┌────────────┐
+  │ MongoDB    │
+  │ Database   │
+  └────────────┘
+```
+
+---
+
+## 📊 Data Flow Diagram
+
+```
+User Login
+    │
+    ▼
+┌─────────────────┐
+│ Validate Input  │
+│ (AppValidator)  │
+└────┬────────────┘
+     │
+     ▼
+┌─────────────────────┐
+│ Call AuthProvider   │
+│  .login()           │
+└────┬────────────────┘
+     │
+     ▼
+┌─────────────────────┐
+│ API Request         │
+│ POST /auth/login    │
+└────┬────────────────┘
+     │
+     ▼
+┌─────────────────────┐
+│ Backend Validation  │
+│ Hash Password Check │
+│ Generate JWT        │
+└────┬────────────────┘
+     │
+     ▼
+┌─────────────────────┐
+│ Return User Data    │
+│ + Auth Token        │
+└────┬────────────────┘
+     │
+     ▼
+┌────────────────────────┐
+│ Save to SharedPrefs    │
+│ Update AuthState       │
+└────┬───────────────────┘
+     │
+     ▼
+┌─────────────────────┐
+│ Route to Dashboard  │
+│ Based on Role       │
+└────┬────────────────┘
+     │
+     ├─ Owner ──────► OwnerDashboard
+     │
+     ├─ Employee ──► EmployeeDashboard
+     │
+     └─ Driver ────► DriverDashboard
+```
+
+---
+
+## 🔄 Feature Usage Flow
+
+```
+From Any Dashboard
+    │
+    ├─► Home Screen
+    │      ├─ View Analytics
+    │      ├─ View Stats
+    │      └─ Quick Actions
+    │
+    ├─► Trips (All roles)
+    │      ├─ Owner/Emp: Create, Edit, Delete
+    │      ├─ Driver: View Assigned
+    │      └─ All: View Details
+    │
+    ├─► Vehicles (Owner/Emp)
+    │      ├─ Add Vehicle
+    │      ├─ Set Bata Rate
+    │      └─ Manage Fleet
+    │
+    ├─► Drivers (All roles)
+    │      ├─ Owner: Full CRUD
+    │      ├─ Emp: View & Assign
+    │      └─ Driver: View Self Info
+    │
+    ├─► Earnings (Driver only)
+    │      ├─ Daily Earnings
+    │      ├─ Weekly Earnings
+    │      ├─ Monthly Earnings
+    │      └─ Detailed Breakdown
+    │
+    ├─► Billing/Payments (Owner/Emp)
+    │      ├─ Create Invoice
+    │      ├─ Track Payments
+    │      └─ Generate Reports
+    │
+    ├─► Leave Request (All roles)
+    │      ├─ Apply Leave
+    │      ├─ View Status
+    │      └─ Owner: Approve/Reject
+    │
+    ├─► Alerts (All roles)
+    │      ├─ System Notifications
+    │      ├─ Trip Alerts
+    │      └─ Payment Reminders
+    │
+    └─► Settings (All roles)
+           ├─ Profile Edit
+           ├─ Theme Toggle
+           └─ Logout
+```
+
+---
+
+## 🎨 Theme Architecture
+
+```
+┌──────────────────────────────────┐
+│       Theme Provider             │
+│  (ThemeModeProvider)             │
+└───────────┬──────────────────────┘
+            │
+    ┌───────┴────────┐
+    │                │
+    ▼                ▼
+┌─────────┐      ┌──────────┐
+│  Light  │      │  Dark    │
+│  Theme  │      │  Theme   │
+└────┬────┘      └────┬─────┘
+     │                │
+     │          ┌─────┴─────────┐
+     │          │               │
+     ▼          ▼               ▼
+ ┌─────────────────────────────────┐
+ │    State Persisted in           │
+ │    SharedPreferences            │
+ │    Key: 'app_theme_mode'        │
+ │    Value: 'light'/'dark'        │
+ └─────────────────────────────────┘
+     │
+     ▼
+ ┌──────────────────────────────────┐
+ │   Apply Theme On Every Build()   │
+ │   Via MaterialApp.themeMode      │
+ └──────────────────────────────────┘
+```
+
+---
+
+## 📍 GPS Integration Architecture
+
+```
+┌─────────────────────────────┐
+│  Driver Starts Trip         │
+└──────────────┬──────────────┘
+               │
+               ▼
+        ┌─────────────────┐
+        │ Request GPS     │
+        │ Permission      │
+        └────┬────────────┘
+             │
+        ┌────┴────────┐
+        │             │
+    Granted      Denied
+        │             │
+        │        Error Message
+        │
+        ▼
+   ┌──────────────────────┐
+   │ Get Current Position │
+   │ (GPS Coordinates)    │
+   └────┬─────────────────┘
+        │
+        ▼
+   ┌──────────────────────┐
+   │ Listen to Location   │
+   │ Updates              │
+   │ (Continuous Stream)  │
+   └────┬─────────────────┘
+        │
+        ▼
+   ┌──────────────────────┐
+   │ For Each Update:     │
+   │ 1. Get Address       │
+   │ 2. Calculate Distance│
+   │ 3. Update UI         │
+   │ 4. Log Location      │
+   └─────────────────────┘
+```
+
+---
+
+**This architecture ensures a clean, maintainable, and scalable application with clear separation of concerns and proper role-based access control throughout all layers.**

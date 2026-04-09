@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/constants/role_permissions.dart';
 import '../core/services/api_service.dart';
 import '../core/services/auth_storage_service.dart';
 import '../models/app_user.dart';
@@ -7,6 +8,7 @@ import '../models/app_user.dart';
 class AuthState {
   final String? token;
   final String? role;
+  final String? userId;
   final String? name;
   final String? email;
   final bool loading;
@@ -15,15 +17,21 @@ class AuthState {
   const AuthState({
     this.token,
     this.role,
+    this.userId,
     this.name,
     this.email,
     this.loading = false,
     this.error,
   });
 
+  UserRole get userRole => role != null ? UserRoleExtension.fromString(role!) : UserRole.employee;
+
+  bool get isAuthenticated => token != null && token!.isNotEmpty;
+
   AuthState copyWith({
     String? token,
     String? role,
+    String? userId,
     String? name,
     String? email,
     bool? loading,
@@ -33,6 +41,7 @@ class AuthState {
     return AuthState(
       token: token ?? this.token,
       role: role ?? this.role,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       email: email ?? this.email,
       loading: loading ?? this.loading,
@@ -54,6 +63,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(
       token: session['token'],
       role: session['role'],
+      userId: session['userId'],
       name: session['name'],
       email: session['email'],
     );
@@ -65,8 +75,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final response = await _api.post('/auth/login', {'email': email, 'password': password});
       final user = AppUser.fromJson(response as Map<String, dynamic>);
-      await _storage.saveSession(token: user.token, role: user.role, name: user.name, email: user.email);
-      state = state.copyWith(token: user.token, role: user.role, name: user.name, email: user.email, loading: false);
+      await _storage.saveSession(
+        token: user.token,
+        role: user.role,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+      );
+      state = state.copyWith(
+        token: user.token,
+        role: user.role,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        loading: false,
+      );
     } catch (error) {
       state = state.copyWith(loading: false, error: error.toString());
     }
@@ -88,8 +111,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'role': role,
       });
       final user = AppUser.fromJson(response as Map<String, dynamic>);
-      await _storage.saveSession(token: user.token, role: user.role, name: user.name, email: user.email);
-      state = state.copyWith(token: user.token, role: user.role, name: user.name, email: user.email, loading: false);
+      await _storage.saveSession(
+        token: user.token,
+        role: user.role,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+      );
+      state = state.copyWith(
+        token: user.token,
+        role: user.role,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        loading: false,
+      );
     } catch (error) {
       state = state.copyWith(loading: false, error: error.toString());
     }
@@ -106,8 +142,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final response = await _api.put('/auth/profile', payload, token: state.token);
       final user = AppUser.fromJson(response as Map<String, dynamic>);
-      await _storage.saveSession(token: user.token, role: user.role, name: user.name, email: user.email);
-      state = state.copyWith(token: user.token, role: user.role, name: user.name, email: user.email, loading: false);
+      await _storage.saveSession(
+        token: user.token,
+        role: user.role,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+      );
+      state = state.copyWith(
+        token: user.token,
+        role: user.role,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        loading: false,
+      );
     } catch (error) {
       state = state.copyWith(loading: false, error: error.toString());
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/widgets/enhanced_widgets.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -170,6 +171,7 @@ class _DriversPageState extends ConsumerState<DriversPage> {
     final state = ref.watch(appStateProvider);
     final auth = ref.watch(authProvider);
     final role = auth.role;
+    final theme = Theme.of(context);
     final dateFmt = DateFormat('dd MMM yyyy');
     final visibleDrivers = role == 'driver'
         ? state.drivers.where((d) => d.loginEmail != null && d.loginEmail == auth.email).toList()
@@ -181,105 +183,346 @@ class _DriversPageState extends ConsumerState<DriversPage> {
         padding: const EdgeInsets.all(16),
         children: [
           if (role == 'owner' || role == 'employee')
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Add Driver', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 12),
-                    TextField(controller: _name, decoration: const InputDecoration(labelText: 'Driver Name')),
-                    TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Phone')),
-                    TextField(controller: _license, decoration: const InputDecoration(labelText: 'License Number')),
-                    if (role == 'owner') ...[
-                      const SizedBox(height: 8),
-                      Text('Optional login for this driver', style: Theme.of(context).textTheme.titleSmall),
-                      TextField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(labelText: 'Driver Login Email'),
+            EnhancedCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.person_add,
+                          color: theme.colorScheme.primary,
+                        ),
                       ),
-                      TextField(
-                        controller: _password,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Driver Login Password'),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Add Driver',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _name,
+                    decoration: const InputDecoration(
+                      labelText: 'Driver Name',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _license,
+                    decoration: const InputDecoration(
+                      labelText: 'License Number',
+                      prefixIcon: Icon(Icons.credit_card),
+                    ),
+                  ),
+                  if (role == 'owner') ...[
+                    const SizedBox(height: 16),
+                    Divider(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.2)),
                     const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _createDriver,
-                      child: const Text('Save Driver'),
+                    Text(
+                      'Optional: Create Login for Driver',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Driver Login Email',
+                        prefixIcon: Icon(Icons.email),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _password,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Driver Login Password',
+                        prefixIcon: Icon(Icons.lock),
+                      ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.save),
+                      onPressed: _createDriver,
+                      label: const Text('Save Driver'),
+                    ),
+                  ),
+                ],
               ),
             ),
           if (state.loading) const LinearProgressIndicator(),
-          ...visibleDrivers.map(
-            (d) => Card(
-              child: ListTile(
-                title: Text(d.name),
-                subtitle: Text(
-                  'Phone: ${d.phone}\n'
-                  'Hours: ${d.totalWorkingHours.toStringAsFixed(1)} • Days: ${d.totalWorkingDays} • Trips: ${d.totalTripsCompleted}\n'
-                  'Bata Earned: ${d.totalBataEarned.toStringAsFixed(0)}\n'
-                  'Login: ${d.loginEmail ?? 'Not created'}',
-                ),
-                isThreeLine: true,
-                trailing: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if ((role == 'owner' || role == 'employee'))
-                      OutlinedButton(
-                        onPressed: () => _showPayroll(d.id),
-                        child: const Text('Payroll'),
-                      ),
-                    if ((role == 'driver' && auth.email != null && auth.email == d.loginEmail) || role == 'employee')
-                      OutlinedButton(
-                        onPressed: () => _applyLeave(d.id),
-                        child: const Text('Apply Leave'),
-                      ),
-                    if (role == 'driver' && auth.email != null && auth.email == d.loginEmail)
-                      OutlinedButton(
-                        onPressed: () => _showPayroll(d.id),
-                        child: const Text('My Earnings'),
-                      ),
-                  ],
-                ),
-              ),
+          const SizedBox(height: 24),
+          Text(
+            'Drivers (${visibleDrivers.length})',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
           ),
+          const SizedBox(height: 12),
+          ...visibleDrivers.map((d) {
+            final isCurrentDriver = role == 'driver' && auth.email == d.loginEmail;
+            return EnhancedCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        child: Text(
+                          (d.name.isNotEmpty ? d.name[0] : 'D').toUpperCase(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              d.name,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              d.phone,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isCurrentDriver)
+                        Chip(
+                          label: const Text('Me'),
+                          backgroundColor: theme.colorScheme.primaryContainer,
+                          labelStyle: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 2.5,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    children: [
+                      _InfoChip(
+                        icon: Icons.route,
+                        label: 'Trips',
+                        value: '${d.totalTripsCompleted}',
+                      ),
+                      _InfoChip(
+                        icon: Icons.schedule,
+                        label: 'Days',
+                        value: '${d.totalWorkingDays}',
+                      ),
+                      _InfoChip(
+                        icon: Icons.access_time,
+                        label: 'Hours',
+                        value: '${d.totalWorkingHours.toStringAsFixed(1)}',
+                      ),
+                      _InfoChip(
+                        icon: Icons.trending_up,
+                        label: 'Bata',
+                        value: '\$${d.totalBataEarned.toStringAsFixed(0)}',
+                      ),
+                    ],
+                  ),
+                  if (d.loginEmail != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Login: ${d.loginEmail}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if ((role == 'owner' || role == 'employee'))
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.money),
+                          onPressed: () => _showPayroll(d.id),
+                          label: const Text('Payroll'),
+                        ),
+                      if ((role == 'driver' && isCurrentDriver) ||
+                          (role == 'employee'))
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.holiday_village),
+                          onPressed: () => _applyLeave(d.id),
+                          label: const Text('Apply Leave'),
+                        ),
+                      if (isCurrentDriver)
+                        FilledButton.icon(
+                          icon: const Icon(Icons.trending_up),
+                          onPressed: () => _showPayroll(d.id),
+                          label: const Text('My Earnings'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
           if (role == 'owner') ...[
-            const SizedBox(height: 8),
-            Text('Pending Leave Requests', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            Text(
+              'Pending Leave Requests',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
             ...state.drivers.expand((d) {
               final pending = d.leaves.where((l) => l.status == 'pending').toList();
               return pending.map(
-                (leave) => Card(
-                  child: ListTile(
-                    title: Text('${d.name} • ${dateFmt.format(leave.from)} to ${dateFmt.format(leave.to)}'),
-                    subtitle: Text(leave.reason),
-                    trailing: Wrap(
-                      spacing: 8,
-                      children: [
-                        TextButton(
-                          onPressed: () => _approveLeave(d.id, leave.id, 'rejected'),
-                          child: const Text('Reject'),
-                        ),
-                        FilledButton(
-                          onPressed: () => _approveLeave(d.id, leave.id, 'approved'),
-                          child: const Text('Approve'),
-                        ),
-                      ],
-                    ),
+                (leave) => EnhancedCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${d.name} • ${dateFmt.format(leave.from)} to ${dateFmt.format(leave.to)}',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  leave.reason,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.close),
+                              onPressed: () =>
+                                  _approveLeave(d.id, leave.id, 'rejected'),
+                              label: const Text('Reject'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.icon(
+                              icon: const Icon(Icons.check),
+                              onPressed: () =>
+                                  _approveLeave(d.id, leave.id, 'approved'),
+                              label: const Text('Approve'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               );
-            }),
+            }).toList(),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 14, color: theme.colorScheme.primary),
+          Text(
+            value,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 10,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
