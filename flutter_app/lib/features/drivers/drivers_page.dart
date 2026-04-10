@@ -166,6 +166,35 @@ class _DriversPageState extends ConsumerState<DriversPage> {
     );
   }
 
+  Widget _buildLeaveStatus(ThemeData theme, String label, int count, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            count.toString(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: 10,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
@@ -373,6 +402,67 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
+                      ),
+                    ),
+                  ],
+                  // Leave Information
+                  if (d.leaves.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
+                        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.event_note, size: 18, color: theme.colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Leave Information',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildLeaveStatus(
+                                  theme,
+                                  'Approved',
+                                  d.leaves.where((l) => l.status == 'approved').length,
+                                  Colors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildLeaveStatus(
+                                  theme,
+                                  'Pending',
+                                  d.leaves.where((l) => l.status == 'pending').length,
+                                  Colors.orange,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildLeaveStatus(
+                                  theme,
+                                  'Rejected',
+                                  d.leaves.where((l) => l.status == 'rejected').length,
+                                  Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],

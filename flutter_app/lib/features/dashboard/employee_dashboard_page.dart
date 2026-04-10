@@ -10,6 +10,7 @@ import '../payments/payments_page.dart';
 import '../settings/settings_page.dart';
 import '../trips/trips_page.dart';
 import '../vehicles/vehicles_page.dart';
+import '../leave/leave_page.dart';
 import '../../routes/app_router.dart';
 
 class EmployeeDashboardPage extends ConsumerStatefulWidget {
@@ -65,6 +66,12 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
         icon: Icons.person_pin,
         page: DriversPage(),
         description: 'Driver management',
+      ),
+      const _MenuItem(
+        label: 'Leave',
+        icon: Icons.event_note,
+        page: LeavePage(),
+        description: 'Apply & view leaves',
       ),
       const _MenuItem(
         label: 'Billing',

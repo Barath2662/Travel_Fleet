@@ -7,6 +7,7 @@ import '../notifications/notifications_page.dart';
 import '../settings/settings_page.dart';
 import '../trips/trips_page.dart';
 import '../drivers/driver_earnings_page.dart';
+import '../leave/leave_page.dart';
 import '../../routes/app_router.dart';
 
 class DriverDashboardPage extends ConsumerStatefulWidget {
@@ -50,6 +51,12 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
         icon: Icons.route,
         page: TripsPage(),
         description: 'View assigned trips',
+      ),
+      const _MenuItem(
+        label: 'Leave',
+        icon: Icons.event_note,
+        page: LeavePage(),
+        description: 'Apply & view leaves',
       ),
       const _MenuItem(
         label: 'Earnings',
