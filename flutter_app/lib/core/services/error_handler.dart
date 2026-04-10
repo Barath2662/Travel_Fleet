@@ -18,7 +18,7 @@ class AppErrorHandler {
     VoidCallback? onRetry,
   }) {
     final message = _getErrorMessage(error);
-    
+
     _showErrorDialog(
       context,
       title: title,
