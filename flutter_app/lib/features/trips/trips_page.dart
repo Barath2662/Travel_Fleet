@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/trip.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
+import 'trip_tracking_page.dart';
 
 class TripsPage extends ConsumerStatefulWidget {
   const TripsPage({super.key});
@@ -139,106 +141,28 @@ class _TripsPageState extends ConsumerState<TripsPage> {
     _show('Driver bata assigned');
   }
 
-  Future<void> _startTrip(String tripId) async {
-    final controller = TextEditingController();
-    final startKm = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Start Trip'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Start KM'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final parsed = int.tryParse(controller.text.trim());
-              if (parsed == null || parsed < 0) {
-                _show('Enter valid start KM');
-                return;
-              }
-              Navigator.pop(context, parsed);
-            },
-            child: const Text('Start'),
-          ),
-        ],
+  Future<void> _startTrip(String tripId, TripModel trip) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TripTrackingPage(tripId: tripId, trip: trip),
       ),
     );
-
-    if (startKm == null) return;
-    await ref.read(appStateProvider.notifier).startTrip(tripId, startKm);
-    _show('Trip started');
+    if (result != null) {
+      _show('Trip started successfully');
+    }
   }
 
-  Future<void> _endTrip(String tripId) async {
-    final kmController = TextEditingController();
-    bool toll = false;
-    bool permit = false;
-    bool parking = false;
-
-    final payload = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('End Trip'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: kmController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'End KM'),
-                ),
-                CheckboxListTile(
-                  value: toll,
-                  onChanged: (value) => setDialogState(() => toll = value ?? false),
-                  title: const Text('Toll Applicable'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-                CheckboxListTile(
-                  value: permit,
-                  onChanged: (value) => setDialogState(() => permit = value ?? false),
-                  title: const Text('Permit Applicable'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-                CheckboxListTile(
-                  value: parking,
-                  onChanged: (value) => setDialogState(() => parking = value ?? false),
-                  title: const Text('Parking Applicable'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () {
-                final endKm = int.tryParse(kmController.text.trim());
-                if (endKm == null || endKm < 0) {
-                  _show('Enter valid end KM');
-                  return;
-                }
-                Navigator.pop(context, {
-                  'endKm': endKm,
-                  'tollApplicable': toll,
-                  'permitApplicable': permit,
-                  'parkingApplicable': parking,
-                });
-              },
-              child: const Text('End Trip'),
-            ),
-          ],
-        ),
+  Future<void> _endTrip(String tripId, TripModel trip) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TripTrackingPage(tripId: tripId, trip: trip),
       ),
     );
-
-    if (payload == null) return;
-    await ref.read(appStateProvider.notifier).endTrip(tripId, payload);
-    _show('Trip completed');
+    if (result != null) {
+      _show('Trip ended successfully');
+    }
   }
 
   @override
@@ -413,12 +337,12 @@ class _TripsPageState extends ConsumerState<TripsPage> {
                       ),
                     if (role == 'driver' && trip.status == 'scheduled')
                       OutlinedButton(
-                        onPressed: () => _startTrip(trip.id),
+                        onPressed: () => _startTrip(trip.id, trip),
                         child: const Text('Start'),
                       ),
                     if (role == 'driver' && trip.status == 'in_progress')
                       OutlinedButton(
-                        onPressed: () => _endTrip(trip.id),
+                        onPressed: () => _endTrip(trip.id, trip),
                         child: const Text('End'),
                       ),
                     OutlinedButton(
