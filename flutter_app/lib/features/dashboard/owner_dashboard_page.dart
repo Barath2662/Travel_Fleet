@@ -124,7 +124,7 @@ class _OwnerDashboardPageState extends ConsumerState<OwnerDashboardPage> {
                         gradient: LinearGradient(
                           colors: [
                             theme.colorScheme.primary,
-                            theme.colorScheme.primary.withOpacity(0.7),
+                            theme.colorScheme.primary.withValues(alpha: 0.7),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -191,7 +191,7 @@ class _OwnerDashboardPageState extends ConsumerState<OwnerDashboardPage> {
                             ),
                             selected: isSelected,
                             selectedTileColor: theme.colorScheme.primary
-                                .withOpacity(0.1),
+                                .withValues(alpha: 0.1),
                             onTap: () {
                               setState(() => _index = i);
                               Navigator.pop(context);

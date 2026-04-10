@@ -10,6 +10,7 @@ import '../payments/payments_page.dart';
 import '../settings/settings_page.dart';
 import '../trips/trips_page.dart';
 import '../vehicles/vehicles_page.dart';
+import '../leave/leave_page.dart';
 import '../../routes/app_router.dart';
 
 class EmployeeDashboardPage extends ConsumerStatefulWidget {
@@ -67,6 +68,12 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
         description: 'Driver management',
       ),
       const _MenuItem(
+        label: 'Leave',
+        icon: Icons.event_note,
+        page: LeavePage(),
+        description: 'Apply & view leaves',
+      ),
+      const _MenuItem(
         label: 'Billing',
         icon: Icons.receipt_long,
         page: BillingPage(),
@@ -118,7 +125,7 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
                         gradient: LinearGradient(
                           colors: [
                             Colors.cyan,
-                            Colors.cyan.withOpacity(0.7),
+                            Colors.cyan.withValues(alpha: 0.7),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -183,7 +190,7 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
                             ),
                             selected: isSelected,
                             selectedTileColor:
-                                Colors.cyan.withOpacity(0.1),
+                                Colors.cyan.withValues(alpha: 0.1),
                             onTap: () {
                               setState(() => _index = i);
                               Navigator.pop(context);
