@@ -135,17 +135,17 @@ class AppException implements Exception {
 }
 
 class NetworkException extends AppException {
-  NetworkException({required String message}) : super(message: message);
+  NetworkException({required super.message});
 }
 
 class AuthException extends AppException {
-  AuthException({required String message}) : super(message: message);
+  AuthException({required super.message});
 }
 
 class ValidationException extends AppException {
-  ValidationException({required String message}) : super(message: message);
+  ValidationException({required super.message});
 }
 
 class PermissionException extends AppException {
-  PermissionException({required String message}) : super(message: message);
+  PermissionException({required super.message});
 }

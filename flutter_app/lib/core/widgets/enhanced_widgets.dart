@@ -9,14 +9,14 @@ class EnhancedCard extends StatefulWidget {
   final bool animate;
 
   const EnhancedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.elevation,
     this.backgroundColor,
     this.onTap,
     this.animate = true,
-  }) : super(key: key);
+  });
 
   @override
   State<EnhancedCard> createState() => _EnhancedCardState();
@@ -76,13 +76,13 @@ class StatCard extends StatelessWidget {
   final String? unit;
 
   const StatCard({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
     this.unit,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,12 +144,12 @@ class RoleBasedContainer extends StatelessWidget {
   final VoidCallback? onTap;
 
   const RoleBasedContainer({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.icon,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

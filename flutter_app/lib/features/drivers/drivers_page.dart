@@ -351,7 +351,7 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                       _InfoChip(
                         icon: Icons.access_time,
                         label: 'Hours',
-                        value: '${d.totalWorkingHours.toStringAsFixed(1)}',
+                        value: d.totalWorkingHours.toStringAsFixed(1),
                       ),
                       _InfoChip(
                         icon: Icons.trending_up,
@@ -405,7 +405,7 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                 ],
               ),
             );
-          }).toList(),
+          }),
           if (role == 'owner') ...[
             const SizedBox(height: 24),
             Text(
@@ -476,7 +476,7 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ],
       ),
