@@ -67,6 +67,8 @@ class AppStateNotifier extends StateNotifier<AppState> {
 
   final Ref ref;
 
+  String _toMessage(Object error) => error.toString().replaceFirst('Exception: ', '').trim();
+
   String get token => ref.read(authProvider).token ?? '';
 
   Future<void> fetchTrips() async {
@@ -104,7 +106,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
       }
       state = state.copyWith(loading: false, vehicleBataRates: map);
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
     }
   }
 
@@ -263,7 +265,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
       onData(items);
       state = state.copyWith(loading: false);
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
     }
   }
 
@@ -273,7 +275,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
       await ref.read(apiServiceProvider).post(path, body, token: token);
       state = state.copyWith(loading: false);
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
       rethrow;
     }
   }
@@ -284,7 +286,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
       await ref.read(apiServiceProvider).put(path, body, token: token);
       state = state.copyWith(loading: false);
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
       rethrow;
     }
   }
@@ -295,7 +297,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
       await ref.read(apiServiceProvider).delete(path, token: token);
       state = state.copyWith(loading: false);
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
       rethrow;
     }
   }

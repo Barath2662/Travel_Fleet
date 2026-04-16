@@ -20,4 +20,6 @@ const vehicleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+vehicleSchema.index({ fcDate: 1, insuranceDate: 1, pucDate: 1, permitDate: 1 });
+
 module.exports = mongoose.model('Vehicle', vehicleSchema);

@@ -27,9 +27,12 @@ const billSchema = new mongoose.Schema(
     totalAmount: { type: Number, default: 0 },
     payableAmount: { type: Number, default: 0 },
     pdfPath: { type: String },
-    paymentStatus: { type: String, enum: ['paid', 'pending'], default: 'pending' },
+    paymentStatus: { type: String, enum: ['pending', 'partial', 'paid'], default: 'pending' },
   },
   { timestamps: true }
 );
+
+billSchema.index({ tripId: 1 }, { unique: true, sparse: true });
+billSchema.index({ paymentStatus: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Bill', billSchema);

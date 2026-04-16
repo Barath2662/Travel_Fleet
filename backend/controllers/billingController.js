@@ -44,7 +44,7 @@ const computeBillFields = (payload) => {
 
   const payableAmount = totalAmount - toNumber(payload.advanceReceived);
 
-  return { totalKm, kmCharge, totalAmount, payableAmount };
+  return { totalKm, kmCharge, totalAmount, payableAmount: Math.max(payableAmount, 0) };
 };
 
 const createBill = async (req, res) => {
@@ -86,6 +86,11 @@ const createBill = async (req, res) => {
     parkingCharges: Math.max(toNumber(payload.parkingCharges, toNumber(trip?.parkingAmount)), 0),
     advanceReceived: Math.max(toNumber(payload.advanceReceived), 0),
   };
+
+  if (sanitizedPayload.endKm < sanitizedPayload.startKm) {
+    res.status(400);
+    throw new Error('End KM cannot be less than start KM for billing');
+  }
 
   const totals = computeBillFields(sanitizedPayload);
 

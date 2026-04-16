@@ -169,12 +169,9 @@ class _TripsPageState extends ConsumerState<TripsPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
     final role = ref.watch(authProvider).role;
-    final auth = ref.watch(authProvider);
     final isWide = MediaQuery.of(context).size.width > 760;
     final dateLabel = DateFormat('dd MMM yyyy • HH:mm').format(_pickupDateTime);
-    final visibleTrips = role == 'driver'
-      ? state.trips.where((t) => t.driverName != null && t.driverName == auth.name).toList()
-      : state.trips;
+    final visibleTrips = state.trips;
 
     return RefreshIndicator(
       onRefresh: () async {

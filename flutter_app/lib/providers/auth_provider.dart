@@ -58,6 +58,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService _api;
   final AuthStorageService _storage;
 
+  String _toMessage(Object error) {
+    final raw = error.toString();
+    return raw.replaceFirst('Exception: ', '').trim();
+  }
+
   Future<void> init() async {
     final session = await _storage.getSession();
     state = state.copyWith(
@@ -91,7 +96,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         loading: false,
       );
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
     }
   }
 
@@ -127,7 +132,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         loading: false,
       );
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
     }
   }
 
@@ -158,7 +163,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         loading: false,
       );
     } catch (error) {
-      state = state.copyWith(loading: false, error: error.toString());
+      state = state.copyWith(loading: false, error: _toMessage(error));
     }
   }
 }

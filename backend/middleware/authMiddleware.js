@@ -2,13 +2,22 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const protect = async (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    res.status(500);
+    throw new Error('Server misconfiguration: JWT secret is missing');
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401);
     throw new Error('Unauthorized: missing token');
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    res.status(401);
+    throw new Error('Unauthorized: invalid token');
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -20,7 +29,10 @@ const protect = async (req, res, next) => {
     next();
   } catch (error) {
     res.status(401);
-    throw new Error(`Unauthorized: ${error.message}`);
+    if (error.name === 'TokenExpiredError') {
+      throw new Error('Unauthorized: token expired');
+    }
+    throw new Error('Unauthorized: invalid token');
   }
 };
 

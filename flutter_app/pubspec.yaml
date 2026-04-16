@@ -18,6 +18,8 @@ dependencies:
   geolocator: ^10.1.0
   google_maps_flutter: ^2.5.0
   location: ^5.0.1
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
 
   cupertino_icons: ^1.0.8
 

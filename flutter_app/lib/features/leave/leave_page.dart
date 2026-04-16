@@ -84,9 +84,12 @@ class _LeavePageState extends ConsumerState<LeavePage> {
       final drivers = ref.read(appStateProvider).drivers;
 
       // Find the driver ID for the current user
-      final currentDriver = drivers.firstWhere(
-        (d) => d.loginEmail == auth.email,
-      );
+      final me = drivers.where((d) => d.loginEmail == auth.email).toList();
+      if (me.isEmpty) {
+        _show('No linked driver profile found for this account');
+        return;
+      }
+      final currentDriver = me.first;
 
       await ref.read(appStateProvider.notifier).applyDriverLeave(
         currentDriver.id,
@@ -123,6 +126,8 @@ class _LeavePageState extends ConsumerState<LeavePage> {
         totalWorkingDays: 0,
       ),
     );
+
+    final hasDriverProfile = currentDriver.id.isNotEmpty;
 
     final leaves = currentDriver.leaves;
     final approvedLeaves = leaves.where((l) => l.status == 'approved').toList();
@@ -245,7 +250,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: _isSubmitting ? null : _applyLeave,
+                        onPressed: (!hasDriverProfile || _isSubmitting) ? null : _applyLeave,
                         icon: _isSubmitting
                             ? const SizedBox(
                                 width: 20,
@@ -253,9 +258,21 @@ class _LeavePageState extends ConsumerState<LeavePage> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.send),
-                        label: Text(_isSubmitting ? 'Submitting...' : 'Submit Leave Request'),
+                        label: Text(
+                          !hasDriverProfile
+                              ? 'Driver profile required'
+                              : (_isSubmitting ? 'Submitting...' : 'Submit Leave Request'),
+                        ),
                       ),
                     ),
+                    if (!hasDriverProfile)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          'This account does not have a linked driver profile.',
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                        ),
+                      ),
                   ],
                 ),
               ),

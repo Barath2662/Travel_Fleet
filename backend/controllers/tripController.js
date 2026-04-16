@@ -40,6 +40,18 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const runWithOptionalTransaction = async (session, work) => {
+  try {
+    await session.withTransaction(work);
+  } catch (error) {
+    if (String(error.message || '').includes('Transaction numbers are only allowed')) {
+      await work();
+      return;
+    }
+    throw error;
+  }
+};
+
 const ensureDriverTripAccess = async (trip, user) => {
   if (user.role !== 'driver') {
     return true;
@@ -84,10 +96,18 @@ const getTrips = async (req, res) => {
   const query = {};
 
   if (req.query.vehicleId) {
+    if (!/^[a-fA-F0-9]{24}$/.test(req.query.vehicleId)) {
+      res.status(400);
+      throw new Error('Invalid vehicleId');
+    }
     query.vehicleId = req.query.vehicleId;
   }
 
   if (req.query.driverId) {
+    if (!/^[a-fA-F0-9]{24}$/.test(req.query.driverId)) {
+      res.status(400);
+      throw new Error('Invalid driverId');
+    }
     query.driverId = req.query.driverId;
   }
 
@@ -162,12 +182,18 @@ const startTrip = async (req, res) => {
     throw new Error(`Start KM cannot be less than vehicle current KM (${vehicle.currentKm})`);
   }
 
-  trip.startKm = Number(startKm);
-  trip.startTime = new Date();
-  trip.status = 'in_progress';
-  await trip.save();
+  const started = await Trip.findOneAndUpdate(
+    { _id: trip._id, status: 'scheduled' },
+    { $set: { startKm: Number(startKm), startTime: new Date(), status: 'in_progress' } },
+    { new: true }
+  );
 
-  res.json(trip);
+  if (!started) {
+    res.status(409);
+    throw new Error('Trip already started or completed');
+  }
+
+  res.json(started);
 };
 
 const endTrip = async (req, res) => {
@@ -212,59 +238,85 @@ const endTrip = async (req, res) => {
     throw new Error('End KM cannot be less than start KM');
   }
 
-  trip.endKm = Number(endKm);
-  trip.endTime = new Date();
-  trip.tollApplicable = Boolean(tollApplicable);
-  trip.permitApplicable = Boolean(permitApplicable);
-  trip.parkingApplicable = Boolean(parkingApplicable);
-  trip.fastagApplicable = Boolean(fastagApplicable);
-  trip.tollAmount = Math.max(toNumber(tollAmount), 0);
-  trip.permitAmount = Math.max(toNumber(permitAmount), 0);
-  trip.parkingAmount = Math.max(toNumber(parkingAmount), 0);
-  trip.fastagAmount = Math.max(toNumber(fastagAmount), 0);
-  if (typeof tripNotes === 'string') {
-    trip.tripNotes = tripNotes.trim();
+  const session = await Trip.startSession();
+  let completedTrip = null;
+
+  try {
+    await runWithOptionalTransaction(session, async () => {
+      const lockedTrip = await Trip.findOne({ _id: trip._id, status: 'in_progress' }).session(session);
+      if (!lockedTrip) {
+        res.status(409);
+        throw new Error('Trip already completed or not in progress');
+      }
+
+      if (Number(endKm) < Number(lockedTrip.startKm)) {
+        res.status(400);
+        throw new Error('End KM cannot be less than start KM');
+      }
+
+      lockedTrip.endKm = Number(endKm);
+      lockedTrip.endTime = new Date();
+      lockedTrip.tollApplicable = Boolean(tollApplicable);
+      lockedTrip.permitApplicable = Boolean(permitApplicable);
+      lockedTrip.parkingApplicable = Boolean(parkingApplicable);
+      lockedTrip.fastagApplicable = Boolean(fastagApplicable);
+      lockedTrip.tollAmount = Math.max(toNumber(tollAmount), 0);
+      lockedTrip.permitAmount = Math.max(toNumber(permitAmount), 0);
+      lockedTrip.parkingAmount = Math.max(toNumber(parkingAmount), 0);
+      lockedTrip.fastagAmount = Math.max(toNumber(fastagAmount), 0);
+      if (typeof tripNotes === 'string') {
+        lockedTrip.tripNotes = tripNotes.trim();
+      }
+      if (Array.isArray(routePoints)) {
+        lockedTrip.routePoints = routePoints
+          .map((point) => ({
+            latitude: toNumber(point.latitude),
+            longitude: toNumber(point.longitude),
+            capturedAt: point.capturedAt ? new Date(point.capturedAt) : new Date(),
+          }))
+          .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
+      }
+      lockedTrip.status = 'completed';
+
+      const driver = await Driver.findById(lockedTrip.driverId).session(session);
+      const vehicle = await Vehicle.findById(lockedTrip.vehicleId).session(session);
+
+      if (vehicle && Number(endKm) > Number(vehicle.currentKm || 0)) {
+        vehicle.currentKm = Number(endKm);
+        await vehicle.save({ session: session.inTransaction() ? session : undefined });
+      }
+
+      if (driver && lockedTrip.startTime && lockedTrip.endTime) {
+        const hours = (new Date(lockedTrip.endTime) - new Date(lockedTrip.startTime)) / (1000 * 60 * 60);
+        driver.totalWorkingHours += Math.max(hours, 0);
+        driver.totalWorkingDays += 1;
+        driver.totalTripsCompleted += 1;
+
+        if (lockedTrip.driverBataAssigned > 0 && !lockedTrip.driverBataCredited) {
+          driver.totalBataEarned += lockedTrip.driverBataAssigned;
+          lockedTrip.driverBataCredited = true;
+        }
+
+        await driver.save({ session: session.inTransaction() ? session : undefined });
+      }
+
+      await lockedTrip.save({ session: session.inTransaction() ? session : undefined });
+      completedTrip = lockedTrip;
+    });
+  } finally {
+    await session.endSession();
   }
-  if (Array.isArray(routePoints)) {
-    trip.routePoints = routePoints
-      .map((point) => ({
-        latitude: toNumber(point.latitude),
-        longitude: toNumber(point.longitude),
-        capturedAt: point.capturedAt ? new Date(point.capturedAt) : new Date(),
-      }))
-      .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
-  }
-  trip.status = 'completed';
 
-  await trip.save();
-
-  const vehicle = await Vehicle.findById(trip.vehicleId);
-  if (vehicle && Number(endKm) > Number(vehicle.currentKm || 0)) {
-    vehicle.currentKm = Number(endKm);
-    await vehicle.save();
-  }
-
-  const driver = await Driver.findById(trip.driverId);
-  if (driver && trip.startTime && trip.endTime) {
-    const hours = (new Date(trip.endTime) - new Date(trip.startTime)) / (1000 * 60 * 60);
-    driver.totalWorkingHours += Math.max(hours, 0);
-    driver.totalWorkingDays += 1;
-    driver.totalTripsCompleted += 1;
-
-    if (trip.driverBataAssigned > 0 && !trip.driverBataCredited) {
-      driver.totalBataEarned += trip.driverBataAssigned;
-      trip.driverBataCredited = true;
-      await trip.save();
-    }
-
-    await driver.save();
-  }
-
-  res.json(trip);
+  res.json(completedTrip);
 };
 
 const addAdvance = async (req, res) => {
   const { amount } = req.body;
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+    res.status(400);
+    throw new Error('Advance amount must be a positive number');
+  }
+
   const trip = await Trip.findById(req.params.id);
 
   if (!trip) {
@@ -279,7 +331,7 @@ const addAdvance = async (req, res) => {
   }
 
   trip.advances.push({
-    amount,
+    amount: Number(amount),
     addedByRole: req.user.role,
     addedBy: req.user._id,
   });

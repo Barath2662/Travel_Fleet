@@ -104,6 +104,18 @@ const deleteDriver = async (req, res) => {
 
 const applyLeave = async (req, res) => {
   const { from, to, reason } = req.body;
+  if (!from || !to || !reason || !String(reason).trim()) {
+    res.status(400);
+    throw new Error('from, to and reason are required');
+  }
+
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || toDate < fromDate) {
+    res.status(400);
+    throw new Error('Invalid leave date range');
+  }
+
   const driver = await Driver.findById(req.params.id);
 
   if (!driver) {
@@ -116,7 +128,7 @@ const applyLeave = async (req, res) => {
     throw new Error('Drivers can apply leave only for their own profile');
   }
 
-  driver.leaves.push({ from, to, reason });
+  driver.leaves.push({ from: fromDate, to: toDate, reason: String(reason).trim() });
   await driver.save();
   res.json(driver);
 };

@@ -6,6 +6,14 @@ backend/dist/
 backend/build/
 backend/.DS_Store
 
+# Testing
+backend/coverage/
+backend/.nyc_output/
+backend/*.lcov
+backend/test-results.json
+backend/tests/
+backend/jest.config.js
+
 # Flutter
 flutter_app/.dart_tool/
 flutter_app/.packages
