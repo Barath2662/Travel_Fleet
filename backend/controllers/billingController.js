@@ -17,6 +17,7 @@ const billValidation = [
   body('numberOfHours').optional({ checkFalsy: true }).isNumeric(),
   body('driverBata').optional({ checkFalsy: true }).isNumeric(),
   body('tollCharges').optional({ checkFalsy: true }).isNumeric(),
+  body('fastagCharges').optional({ checkFalsy: true }).isNumeric(),
   body('permitCharges').optional({ checkFalsy: true }).isNumeric(),
   body('parkingCharges').optional({ checkFalsy: true }).isNumeric(),
   body('advanceReceived').optional({ checkFalsy: true }).isNumeric(),
@@ -37,6 +38,7 @@ const computeBillFields = (payload) => {
     toNumber(payload.hourRent) +
     toNumber(payload.driverBata) +
     toNumber(payload.tollCharges) +
+    toNumber(payload.fastagCharges) +
     toNumber(payload.permitCharges) +
     toNumber(payload.parkingCharges);
 
@@ -48,13 +50,25 @@ const computeBillFields = (payload) => {
 const createBill = async (req, res) => {
   const payload = req.body;
 
-  const trip = payload.tripId ? await Trip.findById(payload.tripId) : null;
+  const trip = payload.tripId
+    ? await Trip.findById(payload.tripId).populate('vehicleId', 'number')
+    : null;
+
+  if (payload.tripId && !trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+
+  if (trip && trip.status !== 'completed') {
+    res.status(400);
+    throw new Error('Bill can only be generated for completed trips');
+  }
 
   const sanitizedPayload = {
     ...(payload.tripId ? { tripId: payload.tripId } : {}),
     billDate: payload.billDate || new Date(),
     tripDate: payload.tripDate || payload.billDate || trip?.pickupDateTime || new Date(),
-    vehicleNumber: payload.vehicleNumber || 'N/A',
+    vehicleNumber: payload.vehicleNumber || trip?.vehicleId?.number || 'N/A',
     tripDetails: payload.tripDetails || 'Business trip',
     startTime: payload.startTime || trip?.startTime,
     endTime: payload.endTime || trip?.endTime,
@@ -65,10 +79,11 @@ const createBill = async (req, res) => {
     hourRent: Math.max(toNumber(payload.hourRent), 0),
     numberOfDays: Math.max(toNumber(payload.numberOfDays), 0),
     numberOfHours: Math.max(toNumber(payload.numberOfHours), 0),
-    driverBata: Math.max(toNumber(payload.driverBata), 0),
-    tollCharges: Math.max(toNumber(payload.tollCharges), 0),
-    permitCharges: Math.max(toNumber(payload.permitCharges), 0),
-    parkingCharges: Math.max(toNumber(payload.parkingCharges), 0),
+    driverBata: Math.max(toNumber(payload.driverBata, toNumber(trip?.driverBataAssigned)), 0),
+    tollCharges: Math.max(toNumber(payload.tollCharges, toNumber(trip?.tollAmount)), 0),
+    fastagCharges: Math.max(toNumber(payload.fastagCharges, toNumber(trip?.fastagAmount)), 0),
+    permitCharges: Math.max(toNumber(payload.permitCharges, toNumber(trip?.permitAmount)), 0),
+    parkingCharges: Math.max(toNumber(payload.parkingCharges, toNumber(trip?.parkingAmount)), 0),
     advanceReceived: Math.max(toNumber(payload.advanceReceived), 0),
   };
 

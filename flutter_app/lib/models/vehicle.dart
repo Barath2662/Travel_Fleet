@@ -8,6 +8,7 @@ class VehicleModel {
   final DateTime? fcDate;
   final DateTime? insuranceDate;
   final DateTime? pucDate;
+  final DateTime? permitDate;
 
   const VehicleModel({
     required this.id,
@@ -19,6 +20,7 @@ class VehicleModel {
     this.fcDate,
     this.insuranceDate,
     this.pucDate,
+    this.permitDate,
   });
 
   factory VehicleModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class VehicleModel {
       fcDate: json['fcDate'] == null ? null : DateTime.tryParse(json['fcDate'].toString()),
       insuranceDate: json['insuranceDate'] == null ? null : DateTime.tryParse(json['insuranceDate'].toString()),
       pucDate: json['pucDate'] == null ? null : DateTime.tryParse(json['pucDate'].toString()),
+      permitDate: json['permitDate'] == null ? null : DateTime.tryParse(json['permitDate'].toString()),
     );
   }
 }

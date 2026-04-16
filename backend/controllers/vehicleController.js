@@ -9,6 +9,7 @@ const vehicleValidation = [
   body('fcDate').isISO8601(),
   body('insuranceDate').isISO8601(),
   body('pucDate').isISO8601(),
+  body('permitDate').isISO8601(),
   body('nextServiceKm').isNumeric(),
 ];
 
@@ -34,6 +35,17 @@ const updateVehicle = async (req, res) => {
   Object.assign(vehicle, req.body);
   await vehicle.save();
   res.json(vehicle);
+};
+
+const deleteVehicle = async (req, res) => {
+  const vehicle = await Vehicle.findById(req.params.id);
+  if (!vehicle) {
+    res.status(404);
+    throw new Error('Vehicle not found');
+  }
+
+  await vehicle.deleteOne();
+  res.json({ message: 'Vehicle deleted successfully' });
 };
 
 const getVehicleBataRates = async (_req, res) => {
@@ -66,6 +78,7 @@ module.exports = {
   createVehicle,
   getVehicles,
   updateVehicle,
+  deleteVehicle,
   getVehicleBataRates,
   setVehicleBataRate,
 };

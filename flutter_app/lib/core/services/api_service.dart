@@ -19,6 +19,10 @@ class ApiService {
     return _request(() => http.put(_uri(path), headers: _headers(token), body: jsonEncode(body)));
   }
 
+  Future<dynamic> delete(String path, {String? token}) async {
+    return _request(() => http.delete(_uri(path), headers: _headers(token)));
+  }
+
   Uri _uri(String path) => Uri.parse('${AppConstants.baseUrl}$path');
 
   Map<String, String> _headers(String? token) {

@@ -22,6 +22,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
   DateTime? _fcDate;
   DateTime? _insuranceDate;
   DateTime? _pucDate;
+  DateTime? _permitDate;
 
   @override
   void initState() {
@@ -47,8 +48,8 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
       return;
     }
 
-    if (_fcDate == null || _insuranceDate == null || _pucDate == null) {
-      _show('Please select FC, insurance, and PUC dates');
+    if (_fcDate == null || _insuranceDate == null || _pucDate == null || _permitDate == null) {
+      _show('Please select FC, insurance, PUC, and permit dates');
       return;
     }
 
@@ -59,6 +60,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
       'fcDate': _fcDate!.toIso8601String(),
       'insuranceDate': _insuranceDate!.toIso8601String(),
       'pucDate': _pucDate!.toIso8601String(),
+      'permitDate': _permitDate!.toIso8601String(),
       'nextServiceKm': int.tryParse(_nextServiceKm.text) ?? 0,
       'currentKm': 0,
     });
@@ -71,6 +73,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
       _fcDate = null;
       _insuranceDate = null;
       _pucDate = null;
+      _permitDate = null;
     });
   }
 
@@ -111,6 +114,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
     DateTime? fc = v.fcDate;
     DateTime? insurance = v.insuranceDate;
     DateTime? puc = v.pucDate;
+    DateTime? permit = v.permitDate;
     final nextServiceController = TextEditingController(text: v.nextServiceKm.toString());
 
     final updated = await showDialog<bool>(
@@ -141,8 +145,10 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                   fc = selected;
                 } else if (key == 'insurance') {
                   insurance = selected;
-                } else {
+                } else if (key == 'puc') {
                   puc = selected;
+                } else {
+                  permit = selected;
                 }
               });
             }
@@ -168,6 +174,11 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                       value: _fmt(puc),
                       onTap: () => pickDateDialog('puc'),
                     ),
+                    _DateField(
+                      label: 'Permit Date',
+                      value: _fmt(permit),
+                      onTap: () => pickDateDialog('permit'),
+                    ),
                     TextField(
                       controller: nextServiceController,
                       keyboardType: TextInputType.number,
@@ -180,7 +191,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                 TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
                 FilledButton(
                   onPressed: () async {
-                    if (fc == null || insurance == null || puc == null) {
+                    if (fc == null || insurance == null || puc == null || permit == null) {
                       _show('All renewal dates are required');
                       return;
                     }
@@ -193,6 +204,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                       'fcDate': fc!.toIso8601String(),
                       'insuranceDate': insurance!.toIso8601String(),
                       'pucDate': puc!.toIso8601String(),
+                      'permitDate': permit!.toIso8601String(),
                     });
                     if (context.mounted) {
                       Navigator.pop(context, true);
@@ -341,6 +353,14 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                             onTap: () => _pickDate((d) => _pucDate = d, initialDate: _pucDate),
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DateField(
+                            label: 'Permit Date',
+                            value: _fmt(_permitDate),
+                            onTap: () => _pickDate((d) => _permitDate = d, initialDate: _permitDate),
+                          ),
+                        ),
                       ],
                     )
                   else ...[
@@ -358,6 +378,11 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                       label: 'PUC Date',
                       value: _fmt(_pucDate),
                       onTap: () => _pickDate((d) => _pucDate = d, initialDate: _pucDate),
+                    ),
+                    _DateField(
+                      label: 'Permit Date',
+                      value: _fmt(_permitDate),
+                      onTap: () => _pickDate((d) => _permitDate = d, initialDate: _permitDate),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -401,7 +426,7 @@ class _VehiclesPageState extends ConsumerState<VehiclesPage> {
                 subtitle: Text(
                   'Category: ${v.category.toUpperCase()} | Seats: ${v.seats}\n'
                   'Current KM: ${v.currentKm} | Next Service: ${v.nextServiceKm}\n'
-                  'FC: ${_fmt(v.fcDate)} | Insurance: ${_fmt(v.insuranceDate)} | PUC: ${_fmt(v.pucDate)}',
+                  'FC: ${_fmt(v.fcDate)} | Insurance: ${_fmt(v.insuranceDate)} | PUC: ${_fmt(v.pucDate)} | Permit: ${_fmt(v.permitDate)}',
                 ),
                 isThreeLine: true,
                 trailing: (role == 'owner' || role == 'employee')

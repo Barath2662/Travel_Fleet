@@ -39,6 +39,7 @@ const checkVehicleAlerts = async () => {
       { fcDate: { $lte: threshold } },
       { insuranceDate: { $lte: threshold } },
       { pucDate: { $lte: threshold } },
+      { permitDate: { $lte: threshold } },
     ],
   });
 

@@ -9,6 +9,15 @@ const advanceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const routePointSchema = new mongoose.Schema(
+  {
+    latitude: { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    capturedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
     pickupDateTime: { type: Date, required: true },
@@ -26,6 +35,13 @@ const tripSchema = new mongoose.Schema(
     tollApplicable: { type: Boolean, default: false },
     permitApplicable: { type: Boolean, default: false },
     parkingApplicable: { type: Boolean, default: false },
+    fastagApplicable: { type: Boolean, default: false },
+    tollAmount: { type: Number, default: 0, min: 0 },
+    permitAmount: { type: Number, default: 0, min: 0 },
+    parkingAmount: { type: Number, default: 0, min: 0 },
+    fastagAmount: { type: Number, default: 0, min: 0 },
+    tripNotes: { type: String, trim: true },
+    routePoints: [routePointSchema],
     driverBataAssigned: { type: Number, default: 0, min: 0 },
     driverBataAssignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     driverBataAssignedAt: { type: Date },

@@ -18,6 +18,7 @@ const billSchema = new mongoose.Schema(
     numberOfHours: { type: Number, default: 0 },
     driverBata: { type: Number, default: 0 },
     tollCharges: { type: Number, default: 0 },
+    fastagCharges: { type: Number, default: 0 },
     permitCharges: { type: Number, default: 0 },
     parkingCharges: { type: Number, default: 0 },
     advanceReceived: { type: Number, default: 0 },

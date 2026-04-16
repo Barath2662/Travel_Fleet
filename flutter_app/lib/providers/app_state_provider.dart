@@ -6,6 +6,7 @@ import '../models/driver.dart';
 import '../models/payment.dart';
 import '../models/trip.dart';
 import '../models/vehicle.dart';
+import '../models/app_user.dart';
 import 'auth_provider.dart';
 
 class AppState {
@@ -18,6 +19,7 @@ class AppState {
   final List<DriverModel> drivers;
   final List<PaymentModel> payments;
   final List<AppNotification> notifications;
+  final List<AppUser> users;
 
   const AppState({
     this.loading = false,
@@ -29,6 +31,7 @@ class AppState {
     this.drivers = const [],
     this.payments = const [],
     this.notifications = const [],
+    this.users = const [],
   });
 
   AppState copyWith({
@@ -42,6 +45,7 @@ class AppState {
     List<DriverModel>? drivers,
     List<PaymentModel>? payments,
     List<AppNotification>? notifications,
+    List<AppUser>? users,
   }) {
     return AppState(
       loading: loading ?? this.loading,
@@ -53,6 +57,7 @@ class AppState {
       drivers: drivers ?? this.drivers,
       payments: payments ?? this.payments,
       notifications: notifications ?? this.notifications,
+      users: users ?? this.users,
     );
   }
 }
@@ -126,6 +131,12 @@ class AppStateNotifier extends StateNotifier<AppState> {
     });
   }
 
+  Future<void> fetchUsers() async {
+    await _fetchList('/auth/users', onData: (items) {
+      state = state.copyWith(users: items.map((e) => AppUser.fromJson(e)).toList());
+    });
+  }
+
   Future<void> createTrip(Map<String, dynamic> payload) async {
     await _post('/trip', payload);
     await fetchTrips();
@@ -144,6 +155,10 @@ class AppStateNotifier extends StateNotifier<AppState> {
   Future<void> addAdvance(String id, double amount) async {
     await _post('/trip/$id/advance', {'amount': amount});
     await fetchTrips();
+  }
+
+  Future<void> addRoutePoint(String id, {required double latitude, required double longitude}) async {
+    await _post('/trip/$id/route-point', {'latitude': latitude, 'longitude': longitude});
   }
 
   Future<void> assignTripBata(String id, double amount) async {
@@ -166,14 +181,39 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await fetchVehicles();
   }
 
+  Future<void> deleteVehicle(String id) async {
+    await _delete('/vehicle/$id');
+    await fetchVehicles();
+  }
+
   Future<void> createDriver(Map<String, dynamic> payload) async {
     await _post('/driver', payload);
     await fetchDrivers();
   }
 
+  Future<void> updateDriver(String id, Map<String, dynamic> payload) async {
+    await _put('/driver/$id', payload);
+    await fetchDrivers();
+  }
+
+  Future<void> deleteDriver(String id) async {
+    await _delete('/driver/$id');
+    await fetchDrivers();
+  }
+
   Future<void> createUser(Map<String, dynamic> payload) async {
     await _post('/auth/users', payload);
-    await fetchDrivers();
+    await fetchUsers();
+  }
+
+  Future<void> updateUser(String id, Map<String, dynamic> payload) async {
+    await _put('/auth/users/$id', payload);
+    await fetchUsers();
+  }
+
+  Future<void> deleteUser(String id) async {
+    await _delete('/auth/users/$id');
+    await fetchUsers();
   }
 
   Future<void> createPayment(Map<String, dynamic> payload) async {
@@ -242,6 +282,17 @@ class AppStateNotifier extends StateNotifier<AppState> {
     state = state.copyWith(loading: true, clearError: true);
     try {
       await ref.read(apiServiceProvider).put(path, body, token: token);
+      state = state.copyWith(loading: false);
+    } catch (error) {
+      state = state.copyWith(loading: false, error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> _delete(String path) async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      await ref.read(apiServiceProvider).delete(path, token: token);
       state = state.copyWith(loading: false);
     } catch (error) {
       state = state.copyWith(loading: false, error: error.toString());

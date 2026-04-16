@@ -18,6 +18,12 @@ class _UsersPageState extends ConsumerState<UsersPage> {
   String _role = 'employee';
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(appStateProvider.notifier).fetchUsers());
+  }
+
+  @override
   void dispose() {
     _name.dispose();
     _email.dispose();
@@ -43,6 +49,11 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     _password.clear();
     setState(() => _role = 'employee');
     _show('User added');
+  }
+
+  Future<void> _deleteUser(String id) async {
+    await ref.read(appStateProvider.notifier).deleteUser(id);
+    _show('User deleted');
   }
 
   void _show(String message) {
@@ -102,6 +113,24 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                   const LinearProgressIndicator(),
                 ],
               ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text('All Users', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 8),
+        ...state.users.map(
+          (user) => Card(
+            child: ListTile(
+              title: Text(user.name),
+              subtitle: Text('${user.email}\nRole: ${user.role}'),
+              isThreeLine: true,
+              trailing: user.id == ref.watch(authProvider).userId
+                  ? const Chip(label: Text('You'))
+                  : IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _deleteUser(user.id),
+                    ),
             ),
           ),
         ),

@@ -35,7 +35,7 @@ class AppUser {
       name: json['name'] as String,
       email: json['email'] as String,
       role: json['role'] as String,
-      token: json['token'] as String,
+      token: (json['token'] as String?) ?? '',
     );
   }
 }

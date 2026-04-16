@@ -1,4 +1,4 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthStorageService {
   static const _tokenKey = 'auth_token';
@@ -7,6 +7,10 @@ class AuthStorageService {
   static const _nameKey = 'auth_name';
   static const _emailKey = 'auth_email';
 
+  final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
   Future<void> saveSession({
     required String token,
     required String role,
@@ -14,31 +18,29 @@ class AuthStorageService {
     required String name,
     required String email,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-    await prefs.setString(_roleKey, role);
-    await prefs.setString(_userIdKey, userId);
-    await prefs.setString(_nameKey, name);
-    await prefs.setString(_emailKey, email);
+    await _storage.write(key: _tokenKey, value: token);
+    await _storage.write(key: _roleKey, value: role);
+    await _storage.write(key: _userIdKey, value: userId);
+    await _storage.write(key: _nameKey, value: name);
+    await _storage.write(key: _emailKey, value: email);
   }
 
   Future<Map<String, String?>> getSession() async {
-    final prefs = await SharedPreferences.getInstance();
+    final values = await _storage.readAll();
     return {
-      'token': prefs.getString(_tokenKey),
-      'role': prefs.getString(_roleKey),
-      'userId': prefs.getString(_userIdKey),
-      'name': prefs.getString(_nameKey),
-      'email': prefs.getString(_emailKey),
+      'token': values[_tokenKey],
+      'role': values[_roleKey],
+      'userId': values[_userIdKey],
+      'name': values[_nameKey],
+      'email': values[_emailKey],
     };
   }
 
   Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_roleKey);
-    await prefs.remove(_userIdKey);
-    await prefs.remove(_nameKey);
-    await prefs.remove(_emailKey);
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _roleKey);
+    await _storage.delete(key: _userIdKey);
+    await _storage.delete(key: _nameKey);
+    await _storage.delete(key: _emailKey);
   }
 }

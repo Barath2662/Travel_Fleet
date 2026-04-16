@@ -1,12 +1,76 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class DriverEarningsPage extends ConsumerWidget {
+import '../../providers/app_state_provider.dart';
+import '../../providers/auth_provider.dart';
+
+class DriverEarningsPage extends ConsumerStatefulWidget {
   const DriverEarningsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DriverEarningsPage> createState() => _DriverEarningsPageState();
+}
+
+class _DriverEarningsPageState extends ConsumerState<DriverEarningsPage> {
+  Map<String, dynamic>? _payroll;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadPayroll);
+  }
+
+  Future<void> _loadPayroll() async {
+    final auth = ref.read(authProvider);
+    final app = ref.read(appStateProvider.notifier);
+
+    setState(() => _loading = true);
+    try {
+      await app.fetchDrivers();
+      final drivers = ref.read(appStateProvider).drivers;
+      final me = drivers.where((d) => d.loginEmail == auth.email).toList();
+      if (me.isEmpty) {
+        setState(() {
+          _payroll = null;
+          _loading = false;
+        });
+        return;
+      }
+
+      final payroll = await app.fetchDriverPayroll(me.first.id);
+      if (!mounted) return;
+      setState(() {
+        _payroll = payroll;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    String money(dynamic value) => ((value as num?)?.toDouble() ?? 0).toStringAsFixed(2);
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_payroll == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            'No driver payroll profile found for this account.',
+            style: theme.textTheme.bodyLarge,
+          ),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -29,61 +93,63 @@ class DriverEarningsPage extends ConsumerWidget {
             childAspectRatio: 1.3,
             children: [
               _EarningsCard(
-                title: 'Today',
-                amount: '\$250.00',
-                trips: 5,
+                title: 'Gross Payable',
+                amount: money(_payroll!['grossPayable']),
+                subtitle: 'Net with bata + trips',
                 color: Colors.green,
               ),
               _EarningsCard(
-                title: 'This Week',
-                amount: '\$1,250.00',
-                trips: 28,
+                title: 'Estimated Salary',
+                amount: money(_payroll!['estimatedSalary']),
+                subtitle: 'After leave deduction',
                 color: Colors.blue,
               ),
               _EarningsCard(
-                title: 'This Month',
-                amount: '\$5,200.00',
-                trips: 120,
+                title: 'Trip Salary',
+                amount: money(_payroll!['tripSalary']),
+                subtitle: 'Per completed trip',
                 color: Colors.orange,
               ),
               _EarningsCard(
-                title: 'Total',
-                amount: '\$28,500.00',
-                trips: 680,
+                title: 'Total Bata',
+                amount: money(_payroll!['totalBata']),
+                subtitle: 'Credited bata',
                 color: Colors.purple,
               ),
             ],
           ),
           const SizedBox(height: 24),
           Text(
-            'Recent Trips',
+            'Payroll Summary',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 12),
-          ListView.builder(
+          ListView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: 5,
-            itemBuilder: (context, index) {
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.route),
-                  title: Text('Trip #${index + 1}'),
-                  subtitle: Text('Location ${index + 1} → Location ${index + 2}'),
-                  trailing: Text(
-                    '\$${(50 + index * 12.5).toStringAsFixed(2)}',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ),
-              );
-            },
+            children: [
+              _summaryTile('Working Days', '${_payroll!['totalWorkingDays'] ?? 0}'),
+              _summaryTile('Working Hours', money(_payroll!['totalWorkingHours'])),
+              _summaryTile('Completed Trips', '${_payroll!['totalTripsCompleted'] ?? 0}'),
+              _summaryTile('Salary From Days', money(_payroll!['salaryFromDays'])),
+              _summaryTile('Salary From Hours', money(_payroll!['salaryFromHours'])),
+              _summaryTile('Leave Deduction', money(_payroll!['leaveDeduction'])),
+              _summaryTile('Approved Leaves', '${_payroll!['approvedLeaveCount'] ?? 0}'),
+              _summaryTile('Pending Leaves', '${_payroll!['pendingLeaveCount'] ?? 0}'),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _summaryTile(String label, String value) {
+    return Card(
+      child: ListTile(
+        title: Text(label),
+        trailing: Text(value),
       ),
     );
   }
@@ -93,13 +159,13 @@ class _EarningsCard extends StatelessWidget {
   const _EarningsCard({
     required this.title,
     required this.amount,
-    required this.trips,
+    required this.subtitle,
     required this.color,
   });
 
   final String title;
   final String amount;
-  final int trips;
+  final String subtitle;
   final Color color;
 
   @override
@@ -150,7 +216,7 @@ class _EarningsCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '$trips trips',
+                subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

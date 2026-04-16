@@ -13,6 +13,7 @@ const vehicleSchema = new mongoose.Schema(
     fcDate: { type: Date, required: true },
     insuranceDate: { type: Date, required: true },
     pucDate: { type: Date, required: true },
+    permitDate: { type: Date, required: true },
     nextServiceKm: { type: Number, required: true, min: 0 },
     currentKm: { type: Number, default: 0, min: 0 },
   },

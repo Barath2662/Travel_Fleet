@@ -16,6 +16,13 @@ const createUserValidation = [
   body('role').isIn(['owner', 'employee', 'driver']),
 ];
 
+const updateUserValidation = [
+  body('name').optional().notEmpty(),
+  body('email').optional().isEmail(),
+  body('password').optional().isLength({ min: 6 }),
+  body('role').optional().isIn(['owner', 'employee', 'driver']),
+];
+
 const loginValidation = [body('email').isEmail(), body('password').notEmpty()];
 
 const updateProfileValidation = [
@@ -86,6 +93,66 @@ const createUser = async (req, res) => {
   });
 };
 
+const getUsers = async (_req, res) => {
+  const users = await User.find().select('-password').sort({ createdAt: -1 });
+  res.json(users);
+};
+
+const updateUser = async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const { name, email, password, role } = req.body;
+
+  if (email && email !== user.email) {
+    const existing = await User.findOne({ email });
+    if (existing && String(existing._id) !== String(user._id)) {
+      res.status(400);
+      throw new Error('Email already exists');
+    }
+    user.email = email;
+  }
+
+  if (name) user.name = name;
+  if (password) user.password = password;
+
+  if (role) {
+    if (String(req.user._id) === String(user._id) && role !== 'owner') {
+      res.status(400);
+      throw new Error('Owner cannot change own role from owner');
+    }
+    user.role = role;
+  }
+
+  await user.save();
+
+  res.json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  });
+};
+
+const deleteUser = async (req, res) => {
+  if (String(req.user._id) === String(req.params.id)) {
+    res.status(400);
+    throw new Error('Owner cannot delete own account');
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  await user.deleteOne();
+  res.json({ message: 'User deleted successfully' });
+};
+
 const getProfile = async (req, res) => {
   const user = await User.findById(req.user._id).select('-password');
   if (!user) {
@@ -141,11 +208,15 @@ const updateProfile = async (req, res) => {
 module.exports = {
   registerValidation,
   createUserValidation,
+  updateUserValidation,
   loginValidation,
   updateProfileValidation,
   register,
   login,
   createUser,
+  getUsers,
+  updateUser,
+  deleteUser,
   getProfile,
   updateProfile,
 };

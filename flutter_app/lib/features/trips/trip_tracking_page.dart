@@ -22,9 +22,18 @@ class TripTrackingPage extends ConsumerStatefulWidget {
 class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   late TextEditingController _startKmController;
   late TextEditingController _endKmController;
+  late TextEditingController _notesController;
+  late TextEditingController _tollController;
+  late TextEditingController _permitController;
+  late TextEditingController _parkingController;
+  late TextEditingController _fastagController;
   Position? _currentPosition;
   bool _isLoadingLocation = false;
   bool _isSubmitting = false;
+  bool _tollApplicable = false;
+  bool _permitApplicable = false;
+  bool _parkingApplicable = false;
+  bool _fastagApplicable = false;
   final DateFormat _timeFormat = DateFormat('hh:mm a');
   final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
 
@@ -33,12 +42,22 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     super.initState();
     _startKmController = TextEditingController();
     _endKmController = TextEditingController();
+    _notesController = TextEditingController();
+    _tollController = TextEditingController(text: '0');
+    _permitController = TextEditingController(text: '0');
+    _parkingController = TextEditingController(text: '0');
+    _fastagController = TextEditingController(text: '0');
   }
 
   @override
   void dispose() {
     _startKmController.dispose();
     _endKmController.dispose();
+    _notesController.dispose();
+    _tollController.dispose();
+    _permitController.dispose();
+    _parkingController.dispose();
+    _fastagController.dispose();
     super.dispose();
   }
 
@@ -77,6 +96,12 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
       setState(() {
         _currentPosition = position;
       });
+
+      await ref.read(appStateProvider.notifier).addRoutePoint(
+            widget.tripId,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
 
       _show(
         'Location captured\nLat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}',
@@ -128,9 +153,15 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     try {
       await ref.read(appStateProvider.notifier).endTrip(widget.tripId, {
         'endKm': endKm,
-        'tollApplicable': false,
-        'permitApplicable': false,
-        'parkingApplicable': false,
+        'tollApplicable': _tollApplicable,
+        'permitApplicable': _permitApplicable,
+        'parkingApplicable': _parkingApplicable,
+        'fastagApplicable': _fastagApplicable,
+        'tollAmount': _tollApplicable ? (double.tryParse(_tollController.text.trim()) ?? 0) : 0,
+        'permitAmount': _permitApplicable ? (double.tryParse(_permitController.text.trim()) ?? 0) : 0,
+        'parkingAmount': _parkingApplicable ? (double.tryParse(_parkingController.text.trim()) ?? 0) : 0,
+        'fastagAmount': _fastagApplicable ? (double.tryParse(_fastagController.text.trim()) ?? 0) : 0,
+        'tripNotes': _notesController.text.trim(),
       });
       _show('Trip ended successfully');
       if (mounted) Navigator.pop(context);
@@ -474,6 +505,66 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                           hintText: 'Enter odometer reading at end',
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _notesController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Trip Notes',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _tollApplicable,
+                        onChanged: (value) => setState(() => _tollApplicable = value),
+                        title: const Text('Toll Applicable'),
+                      ),
+                      if (_tollApplicable)
+                        TextField(
+                          controller: _tollController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Toll Amount'),
+                        ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _permitApplicable,
+                        onChanged: (value) => setState(() => _permitApplicable = value),
+                        title: const Text('Permit Applicable'),
+                      ),
+                      if (_permitApplicable)
+                        TextField(
+                          controller: _permitController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Permit Amount'),
+                        ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _parkingApplicable,
+                        onChanged: (value) => setState(() => _parkingApplicable = value),
+                        title: const Text('Parking Applicable'),
+                      ),
+                      if (_parkingApplicable)
+                        TextField(
+                          controller: _parkingController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Parking Amount'),
+                        ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _fastagApplicable,
+                        onChanged: (value) => setState(() => _fastagApplicable = value),
+                        title: const Text('FASTag Applicable'),
+                      ),
+                      if (_fastagApplicable)
+                        TextField(
+                          controller: _fastagController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'FASTag Amount'),
+                        ),
                       const SizedBox(height: 12),
                       // Location Button
                       SizedBox(

@@ -25,6 +25,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   final _hourRent = TextEditingController(text: '0');
   final _driverBata = TextEditingController(text: '0');
   final _toll = TextEditingController(text: '0');
+  final _fastag = TextEditingController(text: '0');
   final _permit = TextEditingController(text: '0');
   final _parking = TextEditingController(text: '0');
   final _advance = TextEditingController(text: '0');
@@ -47,6 +48,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     _hourRent.dispose();
     _driverBata.dispose();
     _toll.dispose();
+    _fastag.dispose();
     _permit.dispose();
     _parking.dispose();
     _advance.dispose();
@@ -78,6 +80,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
         'numberOfHours': 0,
         'driverBata': double.tryParse(_driverBata.text) ?? 0,
         'tollCharges': double.tryParse(_toll.text) ?? 0,
+        'fastagCharges': double.tryParse(_fastag.text) ?? 0,
         'permitCharges': double.tryParse(_permit.text) ?? 0,
         'parkingCharges': double.tryParse(_parking.text) ?? 0,
         'advanceReceived': double.tryParse(_advance.text) ?? 0,
@@ -128,6 +131,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                   _numberField(_hourRent, 'Hour Rent'),
                   _numberField(_driverBata, 'Driver Bata'),
                   _numberField(_toll, 'Toll Charges'),
+                  _numberField(_fastag, 'FASTag Charges'),
                   _numberField(_permit, 'Permit Charges'),
                   _numberField(_parking, 'Parking Charges'),
                   _numberField(_advance, 'Advance Received'),
