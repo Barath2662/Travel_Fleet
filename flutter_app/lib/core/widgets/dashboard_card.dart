@@ -22,7 +22,7 @@ class DashboardCard extends StatelessWidget {
 
     return Card(
       elevation: isDark ? 4 : 2,
-      shadowColor: theme.shadowColor.withOpacity(isDark ? 0.4 : 0.1),
+      shadowColor: theme.shadowColor.withValues(alpha: isDark ? 0.4 : 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -31,7 +31,7 @@ class DashboardCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: accent.withOpacity(isDark ? 0.2 : 0.1),
+                color: accent.withValues(alpha: isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: accent, size: 32),
@@ -45,7 +45,8 @@ class DashboardCard extends StatelessWidget {
                   Text(
                     title,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      color: theme.textTheme.bodyMedium?.color
+                          ?.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
                     ),
                   ),

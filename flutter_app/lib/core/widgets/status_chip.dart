@@ -4,7 +4,7 @@ enum TripStatus { scheduled, inProgress, completed }
 
 class StatusChip extends StatelessWidget {
   final String status;
-  
+
   const StatusChip({super.key, required this.status});
 
   TripStatus _parseStatus(String s) {
@@ -23,24 +23,26 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final parsedStatus = _parseStatus(status);
     final theme = Theme.of(context);
-    
+
     Color backgroundColor;
     Color textColor;
     String label;
 
     switch (parsedStatus) {
       case TripStatus.scheduled:
-        backgroundColor = Colors.blueGrey.withOpacity(0.2);
-        textColor = theme.brightness == Brightness.dark ? Colors.blueGrey.shade100 : Colors.blueGrey.shade800;
+        backgroundColor = Colors.blueGrey.withValues(alpha: 0.2);
+        textColor = theme.brightness == Brightness.dark
+            ? Colors.blueGrey.shade100
+            : Colors.blueGrey.shade800;
         label = 'Scheduled';
         break;
       case TripStatus.inProgress:
-        backgroundColor = Colors.orange.withOpacity(0.2);
+        backgroundColor = Colors.orange.withValues(alpha: 0.2);
         textColor = Colors.orange.shade700;
         label = 'In Progress';
         break;
       case TripStatus.completed:
-        backgroundColor = Colors.green.withOpacity(0.2);
+        backgroundColor = Colors.green.withValues(alpha: 0.2);
         textColor = Colors.green.shade700;
         label = 'Completed';
         break;

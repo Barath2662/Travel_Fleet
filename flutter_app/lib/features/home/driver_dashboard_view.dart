@@ -30,7 +30,7 @@ class DriverDashboardView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Padding(
@@ -60,9 +60,11 @@ class DriverDashboardView extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-            backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-            child: profileImageUrl.isEmpty 
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+            backgroundImage: profileImageUrl.isNotEmpty
+                ? NetworkImage(profileImageUrl)
+                : null,
+            child: profileImageUrl.isEmpty
                 ? Icon(Icons.person, size: 36, color: theme.colorScheme.primary)
                 : null,
           ),
@@ -73,7 +75,8 @@ class DriverDashboardView extends StatelessWidget {
               Text(
                 'Welcome back,',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  color:
+                      theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 4),
@@ -91,8 +94,9 @@ class DriverDashboardView extends StatelessWidget {
   }
 
   Widget _buildMainActions(ThemeData theme) {
-    final isTripActive = currentTrip != null && currentTrip!['status'] == 'in_progress';
-    
+    final isTripActive =
+        currentTrip != null && currentTrip!['status'] == 'in_progress';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
@@ -109,7 +113,8 @@ class DriverDashboardView extends StatelessWidget {
             text: 'END TRIP',
             icon: Icons.stop_rounded,
             height: 64,
-            backgroundColor: !isTripActive ? Colors.grey : Colors.orange.shade600,
+            backgroundColor:
+                !isTripActive ? Colors.grey : Colors.orange.shade600,
             onPressed: !isTripActive ? null : onEndTrip,
           ),
         ],
@@ -142,7 +147,8 @@ class DriverDashboardView extends StatelessWidget {
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16.0),
           elevation: theme.brightness == Brightness.dark ? 4 : 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
@@ -154,7 +160,8 @@ class DriverDashboardView extends StatelessWidget {
                     Flexible(
                       child: Text(
                         '#${currentTrip!['id'].toString().substring(0, 8)}',
-                        style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -164,12 +171,14 @@ class DriverDashboardView extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.my_location, size: 20, color: Colors.blueAccent),
+                    const Icon(Icons.my_location,
+                        size: 20, color: Colors.blueAccent),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         currentTrip!['pickup'] ?? 'Unknown Pickup',
-                        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.bodyLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -184,12 +193,14 @@ class DriverDashboardView extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    const Icon(Icons.location_on, size: 20, color: Colors.redAccent),
+                    const Icon(Icons.location_on,
+                        size: 20, color: Colors.redAccent),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         currentTrip!['drop'] ?? 'Unknown Drop',
-                        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.bodyLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -199,12 +210,14 @@ class DriverDashboardView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.directions_car_filled, size: 20, color: theme.colorScheme.secondary),
+                    Icon(Icons.directions_car_filled,
+                        size: 20, color: theme.colorScheme.secondary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         currentTrip!['vehicle'] ?? 'Assigned Vehicle',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -264,11 +277,14 @@ class DriverDashboardView extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8.0),
               child: InfoTile(
                 leading: CircleAvatar(
-                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                  child: Icon(Icons.calendar_today, color: theme.colorScheme.primary, size: 20),
+                  backgroundColor:
+                      theme.colorScheme.primary.withValues(alpha: 0.1),
+                  child: Icon(Icons.calendar_today,
+                      color: theme.colorScheme.primary, size: 20),
                 ),
                 title: trip.pickupLocation ?? 'Unknown',
-                subtitle: trip.pickupDateTime?.toString().split(' ')[0] ?? 'Unknown Date',
+                subtitle: trip.pickupDateTime?.toString().split(' ')[0] ??
+                    'Unknown Date',
                 trailing: StatusChip(status: trip.status ?? 'scheduled'),
                 onTap: () => onTripTap(trip),
               ),

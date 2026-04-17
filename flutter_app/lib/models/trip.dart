@@ -3,6 +3,7 @@ class TripModel {
   final String customerName;
   final String customerMobile;
   final String pickupLocation;
+  final List<String> placesToVisit;
   final String status;
   final int numberOfDays;
   final String? driverName;
@@ -14,6 +15,7 @@ class TripModel {
     required this.customerName,
     required this.customerMobile,
     required this.pickupLocation,
+    required this.placesToVisit,
     required this.status,
     required this.numberOfDays,
     this.driverName,
@@ -30,10 +32,18 @@ class TripModel {
       customerName: (json['customerName'] as String?) ?? '-',
       customerMobile: (json['customerMobile'] as String?) ?? '-',
       pickupLocation: json['pickupLocation'] as String,
+      placesToVisit: ((json['placesToVisit'] as List<dynamic>?) ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList(),
       status: json['status'] as String,
       numberOfDays: (json['numberOfDays'] as num).toInt(),
-      driverName: driverRaw is Map<String, dynamic> ? (driverRaw['name'] as String?) : null,
-      vehicleNumber: vehicleRaw is Map<String, dynamic> ? (vehicleRaw['number'] as String?) : null,
+      driverName: driverRaw is Map<String, dynamic>
+          ? (driverRaw['name'] as String?)
+          : null,
+      vehicleNumber: vehicleRaw is Map<String, dynamic>
+          ? (vehicleRaw['number'] as String?)
+          : null,
       driverBataAssigned: (json['driverBataAssigned'] as num?)?.toDouble() ?? 0,
     );
   }
