@@ -1,10 +1,19 @@
 /// Application configuration and constants
 class AppConfig {
   // API Configuration
-  static const String apiBaseUrl = 'http://localhost:3000/api';
+  static const String productionApiBaseUrl =
+      'https://travel-fleet.onrender.com/api';
   static const String apiVersion = 'v1';
-  static const int apiTimeout = 30; // seconds
-  static const int apiRetryCount = 3;
+  static const int apiTimeout = 45; // seconds (Render cold start friendly)
+  static const int apiRetryCount = 2;
+  static const int apiInitialRetryDelayMs = 1500;
+
+  /// Single source of truth for API base URL.
+  /// Optional override via --dart-define=API_BASE_URL for controlled deployments.
+  static String get apiBaseUrl {
+    const fromEnv = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    return fromEnv.isNotEmpty ? fromEnv : productionApiBaseUrl;
+  }
 
   // App Information
   static const String appName = 'Travel Fleet';
@@ -59,7 +68,8 @@ class AppConfig {
 
   /// Get API endpoint
   static String getApiEndpoint(String path) {
-    return '$apiBaseUrl/$path';
+    final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    return '$apiBaseUrl/$normalizedPath';
   }
 
   /// Get API headers
@@ -76,26 +86,20 @@ class AppConfig {
 enum Environment { development, staging, production }
 
 class EnvironmentConfig {
-  static Environment _currentEnvironment = Environment.development;
+  static Environment _currentEnvironment = Environment.production;
 
   static Environment get currentEnvironment => _currentEnvironment;
 
   static String get baseUrl {
-    switch (_currentEnvironment) {
-      case Environment.development:
-        return 'http://localhost:3000/api';
-      case Environment.staging:
-        return 'https://staging-api.example.com/api';
-      case Environment.production:
-        return 'https://api.example.com/api';
-    }
+    return AppConfig.apiBaseUrl;
   }
 
   static void setEnvironment(Environment env) {
     _currentEnvironment = env;
   }
 
-  static bool get isDevelopment => _currentEnvironment == Environment.development;
+  static bool get isDevelopment =>
+      _currentEnvironment == Environment.development;
   static bool get isStaging => _currentEnvironment == Environment.staging;
   static bool get isProduction => _currentEnvironment == Environment.production;
 }
