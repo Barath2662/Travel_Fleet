@@ -5,7 +5,7 @@ enum TripStatus { scheduled, inProgress, completed }
 class StatusChip extends StatelessWidget {
   final String status;
   
-  const StatusChip({Key? key, required this.status}) : super(key: key);
+  const StatusChip({super.key, required this.status});
 
   TripStatus _parseStatus(String s) {
     switch (s.toLowerCase()) {

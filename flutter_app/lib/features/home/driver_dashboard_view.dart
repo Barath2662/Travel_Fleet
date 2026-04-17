@@ -16,7 +16,7 @@ class DriverDashboardView extends StatelessWidget {
   final Function(dynamic) onTripTap;
 
   const DriverDashboardView({
-    Key? key,
+    super.key,
     required this.driverName,
     this.profileImageUrl = '',
     required this.monthlyEarnings,
@@ -25,7 +25,7 @@ class DriverDashboardView extends StatelessWidget {
     required this.onStartTrip,
     required this.onEndTrip,
     required this.onTripTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -10,7 +10,7 @@ class PrimaryButton extends StatelessWidget {
   final Color? backgroundColor;
 
   const PrimaryButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.onPressed,
     this.isLoading = false,
@@ -18,7 +18,7 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.height = 56.0,
     this.backgroundColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
