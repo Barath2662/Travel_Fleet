@@ -7,6 +7,7 @@ const paymentValidation = [
   body('billId').isMongoId(),
   body('amount').isFloat({ gt: 0 }),
   body('status').optional().isIn(['pending', 'paid']),
+  body('mode').optional().isIn(['partial', 'full', 'remaining']),
   body('idempotencyKey').optional().isString(),
 ];
 
@@ -42,10 +43,15 @@ const recomputeBillPaymentStatus = async (billId, session) => {
 
   const totalPaid = paidAggregate.length ? Number(paidAggregate[0].totalPaid) : 0;
   const payableAmount = Number(bill.payableAmount || 0);
+  const normalizedPaid = Math.max(Math.min(totalPaid, payableAmount), 0);
+  const remainingAmount = Math.max(payableAmount - normalizedPaid, 0);
 
-  if (totalPaid <= 0) {
+  bill.paidAmount = normalizedPaid;
+  bill.remainingAmount = remainingAmount;
+
+  if (normalizedPaid <= 0) {
     bill.paymentStatus = 'pending';
-  } else if (totalPaid < payableAmount) {
+  } else if (remainingAmount > 0) {
     bill.paymentStatus = 'partial';
   } else {
     bill.paymentStatus = 'paid';
@@ -60,6 +66,7 @@ const createPayment = async (req, res) => {
 
   const session = await Payment.startSession();
   let paymentDoc = null;
+  let updatedBillDoc = null;
 
   try {
     await runWithOptionalTransaction(session, async () => {
@@ -69,6 +76,23 @@ const createPayment = async (req, res) => {
       if (!bill) {
         res.status(404);
         throw new Error('Bill not found');
+      }
+
+      const requestedAmount = Number(amount);
+      if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+        res.status(400);
+        throw new Error('Payment amount must be greater than 0');
+      }
+
+      const remainingBeforePayment = Number(bill.remainingAmount ?? bill.payableAmount ?? 0);
+      if (remainingBeforePayment <= 0) {
+        res.status(400);
+        throw new Error('Bill is already fully paid');
+      }
+
+      if (requestedAmount > remainingBeforePayment) {
+        res.status(400);
+        throw new Error(`Payment exceeds remaining amount (${remainingBeforePayment.toFixed(2)})`);
       }
 
       if (idempotencyKey) {
@@ -85,28 +109,31 @@ const createPayment = async (req, res) => {
         [
           {
             billId,
-            amount: Number(amount),
-            status: status || 'pending',
+            amount: requestedAmount,
+            status: status || 'paid',
             notes,
             idempotencyKey,
-            paidAt: (status || 'pending') === 'paid' ? new Date() : null,
+            paidAt: new Date(),
             updatedBy: req.user._id,
           },
         ],
         { session: session.inTransaction() ? session : undefined }
       ).then((docs) => docs[0]);
 
-      await recomputeBillPaymentStatus(billId, session);
+      updatedBillDoc = await recomputeBillPaymentStatus(billId, session);
     });
   } finally {
     await session.endSession();
   }
 
-  res.status(201).json(paymentDoc);
+  res.status(201).json({
+    payment: paymentDoc,
+    bill: updatedBillDoc,
+  });
 };
 
 const getPayments = async (_req, res) => {
-  const payments = await Payment.find().populate('billId').sort({ createdAt: -1 });
+  const payments = await Payment.find().populate('billId', 'billCode customerName payableAmount paidAmount remainingAmount paymentStatus').sort({ createdAt: -1 });
   res.json(payments);
 };
 
@@ -122,6 +149,21 @@ const updatePayment = async (req, res) => {
     throw new Error('Payment amount must be greater than 0');
   }
 
+  const bill = await Bill.findById(payment.billId);
+  if (!bill) {
+    res.status(404);
+    throw new Error('Bill not found for payment');
+  }
+
+  const nextAmount = req.body.amount !== undefined ? Number(req.body.amount) : payment.amount;
+  const currentPaidWithoutThis = Math.max(Number(bill.paidAmount || 0) - Number(payment.status === 'paid' ? payment.amount : 0), 0);
+  const maxAllowed = Math.max(Number(bill.payableAmount || 0) - currentPaidWithoutThis, 0);
+
+  if (nextAmount > maxAllowed) {
+    res.status(400);
+    throw new Error(`Updated amount exceeds remaining allowable amount (${maxAllowed.toFixed(2)})`);
+  }
+
   Object.assign(payment, {
     ...req.body,
     amount: req.body.amount !== undefined ? Number(req.body.amount) : payment.amount,
@@ -134,16 +176,20 @@ const updatePayment = async (req, res) => {
   }
 
   const session = await Payment.startSession();
+  let updatedBillDoc = null;
   try {
     await runWithOptionalTransaction(session, async () => {
       await payment.save({ session: session.inTransaction() ? session : undefined });
-      await recomputeBillPaymentStatus(payment.billId, session);
+      updatedBillDoc = await recomputeBillPaymentStatus(payment.billId, session);
     });
   } finally {
     await session.endSession();
   }
 
-  res.json(payment);
+  res.json({
+    payment,
+    bill: updatedBillDoc,
+  });
 };
 
 module.exports = { paymentValidation, createPayment, getPayments, updatePayment };

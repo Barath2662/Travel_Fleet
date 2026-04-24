@@ -29,7 +29,7 @@ class AppTheme {
     ),
     scaffoldBackgroundColor: _backgroundLight,
     appBarTheme: const AppBarTheme(
-      centerTitle: true,
+      centerTitle: false,
       elevation: 0,
       scrolledUnderElevation: 0,
       backgroundColor: Colors.transparent,
@@ -137,7 +137,7 @@ class AppTheme {
     ),
     scaffoldBackgroundColor: _backgroundDark,
     appBarTheme: const AppBarTheme(
-      centerTitle: true,
+      centerTitle: false,
       elevation: 0,
       scrolledUnderElevation: 0,
       backgroundColor: Colors.transparent,

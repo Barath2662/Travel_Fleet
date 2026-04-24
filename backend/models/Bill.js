@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const billSchema = new mongoose.Schema(
   {
     tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip' },
+    billCode: { type: String, unique: true, required: true, trim: true },
+    customerName: { type: String, default: 'N/A', trim: true },
     billDate: { type: Date, default: Date.now },
     tripDate: { type: Date, default: Date.now },
     vehicleNumber: { type: String, default: 'N/A' },
@@ -26,12 +28,15 @@ const billSchema = new mongoose.Schema(
     kmCharge: { type: Number, default: 0 },
     totalAmount: { type: Number, default: 0 },
     payableAmount: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0, min: 0 },
+    remainingAmount: { type: Number, default: 0, min: 0 },
     pdfPath: { type: String },
     paymentStatus: { type: String, enum: ['pending', 'partial', 'paid'], default: 'pending' },
   },
   { timestamps: true }
 );
 
+billSchema.index({ billCode: 1 }, { unique: true });
 billSchema.index({ tripId: 1 }, { unique: true, sparse: true });
 billSchema.index({ paymentStatus: 1, createdAt: -1 });
 

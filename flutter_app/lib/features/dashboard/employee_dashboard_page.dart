@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/drawer_profile_header.dart';
 import '../../providers/auth_provider.dart';
 import '../billing/billing_page.dart';
 import '../drivers/drivers_page.dart';
@@ -119,49 +120,14 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
               child: SafeArea(
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.cyan,
-                            Colors.cyan.withValues(alpha: 0.7),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: theme.colorScheme.surface,
-                            child: Text(
-                              auth.name?.isNotEmpty == true
-                                  ? auth.name!.substring(0, 1).toUpperCase()
-                                  : 'E',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                color: Colors.cyan,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            auth.name ?? 'Employee',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            auth.email ?? '',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
+                    DrawerProfileHeader(
+                      name: auth.name ?? 'Employee',
+                      email: auth.email ?? '',
+                      initial: auth.name?.isNotEmpty == true
+                          ? auth.name!.substring(0, 1).toUpperCase()
+                          : 'E',
+                      accent: Colors.teal,
+                      label: 'Employee Account',
                     ),
                     Expanded(
                       child: ListView.builder(
@@ -173,14 +139,14 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
                           return ListTile(
                             leading: Icon(
                               item.icon,
-                              color: isSelected ? Colors.cyan : null,
+                              color: isSelected ? Colors.teal : null,
                             ),
                             title: Text(
                               item.label,
                               style: isSelected
                                   ? theme.textTheme.bodyLarge?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.cyan,
+                                      color: Colors.teal,
                                     )
                                   : null,
                             ),
@@ -189,8 +155,7 @@ class _EmployeeDashboardPageState extends ConsumerState<EmployeeDashboardPage> {
                               style: theme.textTheme.bodySmall,
                             ),
                             selected: isSelected,
-                            selectedTileColor:
-                                Colors.cyan.withValues(alpha: 0.1),
+                            selectedTileColor: Colors.teal.withValues(alpha: 0.1),
                             onTap: () {
                               setState(() => _index = i);
                               Navigator.pop(context);

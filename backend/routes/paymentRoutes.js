@@ -7,8 +7,8 @@ const { validate } = require('../middleware/validationMiddleware');
 const router = express.Router();
 const paymentIdParamValidation = [param('id').isMongoId()];
 
-router.post('/payment', protect, authorizeRoles('owner', 'employee'), paymentValidation, validate, createPayment);
-router.get('/payments', protect, getPayments);
-router.put('/payment/:id', protect, authorizeRoles('owner', 'employee'), paymentIdParamValidation, validate, updatePayment);
+router.post('/payment', protect, authorizeRoles('owner'), paymentValidation, validate, createPayment);
+router.get('/payments', protect, authorizeRoles('owner', 'employee'), getPayments);
+router.put('/payment/:id', protect, authorizeRoles('owner'), paymentIdParamValidation, validate, updatePayment);
 
 module.exports = router;

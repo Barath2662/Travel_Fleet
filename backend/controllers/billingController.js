@@ -28,6 +28,27 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const buildNextBillCode = async () => {
+  const latest = await Bill.findOne({}, { billCode: 1 }).sort({ createdAt: -1, _id: -1 });
+  const current = latest?.billCode ? Number(String(latest.billCode).split('-')[1]) : NaN;
+  const next = Number.isFinite(current) ? current + 1 : 1001;
+  return `BILL-${next}`;
+};
+
+const ensureUniqueBillCode = async () => {
+  let attempts = 0;
+  while (attempts < 5) {
+    const candidate = await buildNextBillCode();
+    const exists = await Bill.exists({ billCode: candidate });
+    if (!exists) {
+      return candidate;
+    }
+    attempts += 1;
+  }
+
+  return `BILL-${Date.now()}`;
+};
+
 const computeBillFields = (payload) => {
   const totalKm = Math.max(toNumber(payload.endKm) - toNumber(payload.startKm), 0);
   const kmCharge = totalKm * toNumber(payload.ratePerKm);
@@ -66,6 +87,8 @@ const createBill = async (req, res) => {
 
   const sanitizedPayload = {
     ...(payload.tripId ? { tripId: payload.tripId } : {}),
+    billCode: await ensureUniqueBillCode(),
+    customerName: payload.customerName || trip?.customerName || 'N/A',
     billDate: payload.billDate || new Date(),
     tripDate: payload.tripDate || payload.billDate || trip?.pickupDateTime || new Date(),
     vehicleNumber: payload.vehicleNumber || trip?.vehicleId?.number || 'N/A',
@@ -97,6 +120,9 @@ const createBill = async (req, res) => {
   const bill = await Bill.create({
     ...sanitizedPayload,
     ...totals,
+    paidAmount: 0,
+    remainingAmount: totals.payableAmount,
+    paymentStatus: totals.payableAmount > 0 ? 'pending' : 'paid',
   });
 
   const pdf = await generateInvoicePdf(bill);
@@ -106,8 +132,29 @@ const createBill = async (req, res) => {
   res.status(201).json(bill);
 };
 
-const getBills = async (_req, res) => {
-  const bills = await Bill.find().populate('tripId').sort({ createdAt: -1 });
+const getBills = async (req, res) => {
+  const query = {};
+
+  if (req.query.status && ['pending', 'partial', 'paid'].includes(req.query.status)) {
+    query.paymentStatus = req.query.status;
+  }
+
+  if (req.query.fromDate || req.query.toDate) {
+    query.billDate = {};
+    if (req.query.fromDate) {
+      query.billDate.$gte = new Date(req.query.fromDate);
+    }
+    if (req.query.toDate) {
+      query.billDate.$lte = new Date(req.query.toDate);
+    }
+  }
+
+  if (req.query.q) {
+    const pattern = new RegExp(String(req.query.q).trim(), 'i');
+    query.$or = [{ billCode: pattern }, { customerName: pattern }];
+  }
+
+  const bills = await Bill.find(query).populate('tripId').sort({ createdAt: -1 });
   res.json(bills);
 };
 

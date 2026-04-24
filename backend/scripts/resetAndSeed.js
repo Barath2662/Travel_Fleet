@@ -149,6 +149,8 @@ const seed = async () => {
   console.log('Creating bill and payment...');
   const bill = await Bill.create({
     tripId: completedTrip._id,
+    billCode: 'BILL-1001',
+    customerName: completedTrip.customerName,
     billDate: new Date(),
     tripDate: completedTrip.pickupDateTime,
     vehicleNumber: vehicle.number,
@@ -172,16 +174,24 @@ const seed = async () => {
     kmCharge: 3000,
     totalAmount: 5100,
     payableAmount: 4100,
+    paidAmount: 0,
+    remainingAmount: 4100,
     paymentStatus: 'pending',
   });
 
   await Payment.create({
     billId: bill._id,
     amount: 2000,
-    status: 'pending',
+    status: 'paid',
+    paidAt: new Date(),
     notes: 'Advance settlement pending final payment',
     updatedBy: employee._id,
   });
+
+  bill.paidAmount = 2000;
+  bill.remainingAmount = 2100;
+  bill.paymentStatus = 'partial';
+  await bill.save();
 
   console.log('Creating notifications...');
   await Notification.insertMany([

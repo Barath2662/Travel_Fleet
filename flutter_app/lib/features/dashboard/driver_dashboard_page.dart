@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/drawer_profile_header.dart';
 import '../../providers/auth_provider.dart';
 import '../home/home_page.dart';
 import '../notifications/notifications_page.dart';
@@ -98,49 +99,14 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
               child: SafeArea(
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.orange,
-                            Colors.orange.withValues(alpha: 0.7),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: theme.colorScheme.surface,
-                            child: Text(
-                              auth.name?.isNotEmpty == true
-                                  ? auth.name!.substring(0, 1).toUpperCase()
-                                  : 'D',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                color: Colors.orange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            auth.name ?? 'Driver',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            auth.email ?? '',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
+                    DrawerProfileHeader(
+                      name: auth.name ?? 'Driver',
+                      email: auth.email ?? '',
+                      initial: auth.name?.isNotEmpty == true
+                          ? auth.name!.substring(0, 1).toUpperCase()
+                          : 'D',
+                      accent: Colors.orange.shade700,
+                      label: 'Driver Account',
                     ),
                     Expanded(
                       child: ListView.builder(
@@ -152,14 +118,14 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
                           return ListTile(
                             leading: Icon(
                               item.icon,
-                              color: isSelected ? Colors.orange : null,
+                              color: isSelected ? Colors.orange.shade700 : null,
                             ),
                             title: Text(
                               item.label,
                               style: isSelected
                                   ? theme.textTheme.bodyLarge?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
+                                      color: Colors.orange.shade700,
                                     )
                                   : null,
                             ),
@@ -168,8 +134,7 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
                               style: theme.textTheme.bodySmall,
                             ),
                             selected: isSelected,
-                            selectedTileColor:
-                                Colors.orange.withValues(alpha: 0.1),
+                            selectedTileColor: Colors.orange.withValues(alpha: 0.1),
                             onTap: () {
                               setState(() => _index = i);
                               Navigator.pop(context);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../core/widgets/drawer_profile_header.dart';
 import '../billing/billing_page.dart';
 import '../drivers/drivers_page.dart';
 import '../home/home_page.dart';
@@ -118,49 +119,14 @@ class _OwnerDashboardPageState extends ConsumerState<OwnerDashboardPage> {
               child: SafeArea(
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.colorScheme.primary,
-                            theme.colorScheme.primary.withValues(alpha: 0.7),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: theme.colorScheme.surface,
-                            child: Text(
-                              auth.name?.isNotEmpty == true
-                                  ? auth.name!.substring(0, 1).toUpperCase()
-                                  : 'O',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            auth.name ?? 'Owner',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            auth.email ?? '',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
+                    DrawerProfileHeader(
+                      name: auth.name ?? 'Owner',
+                      email: auth.email ?? '',
+                      initial: auth.name?.isNotEmpty == true
+                          ? auth.name!.substring(0, 1).toUpperCase()
+                          : 'O',
+                      accent: theme.colorScheme.primary,
+                      label: 'Owner Account',
                     ),
                     Expanded(
                       child: ListView.builder(

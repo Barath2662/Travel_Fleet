@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/app_notification.dart';
 import '../models/bill.dart';
@@ -219,9 +220,33 @@ class AppStateNotifier extends StateNotifier<AppState> {
   }
 
   Future<void> createPayment(Map<String, dynamic> payload) async {
-    await _post('/payment', payload);
-    await fetchPayments();
-    await fetchBills();
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      final api = ref.read(apiServiceProvider);
+      final response = await api.post('/payment', payload, token: token);
+      debugPrint('createPayment response: $response');
+
+      if (response is Map<String, dynamic>) {
+        final rawBill = response['bill'];
+        if (rawBill is Map<String, dynamic>) {
+          final updatedBill = BillModel.fromJson(rawBill);
+          final nextBills = state.bills
+              .map((bill) => bill.id == updatedBill.id ? updatedBill : bill)
+              .toList();
+          final hasBill = nextBills.any((bill) => bill.id == updatedBill.id);
+          state = state.copyWith(
+            bills: hasBill ? nextBills : [updatedBill, ...state.bills],
+          );
+        }
+      }
+
+      state = state.copyWith(loading: false);
+      await fetchBills();
+      await fetchPayments();
+    } catch (error) {
+      state = state.copyWith(loading: false, error: _toMessage(error));
+      rethrow;
+    }
   }
 
   Future<void> applyDriverLeave(String id, {required DateTime from, required DateTime to, required String reason}) async {

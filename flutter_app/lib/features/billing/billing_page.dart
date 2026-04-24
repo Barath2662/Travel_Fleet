@@ -29,6 +29,8 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   final _permit = TextEditingController(text: '0');
   final _parking = TextEditingController(text: '0');
   final _advance = TextEditingController(text: '0');
+  final _search = TextEditingController();
+  DateTime? _filterDate;
 
   @override
   void initState() {
@@ -52,7 +54,29 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     _permit.dispose();
     _parking.dispose();
     _advance.dispose();
+    _search.dispose();
     super.dispose();
+  }
+
+  bool _matchesDate(DateTime? billDate, DateTime? filterDate) {
+    if (filterDate == null) return true;
+    if (billDate == null) return false;
+    return billDate.year == filterDate.year &&
+        billDate.month == filterDate.month &&
+        billDate.day == filterDate.day;
+  }
+
+  Future<void> _pickFilterDate() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _filterDate ?? now,
+      firstDate: DateTime(now.year - 3),
+      lastDate: DateTime(now.year + 3),
+    );
+    if (selected != null) {
+      setState(() => _filterDate = selected);
+    }
   }
 
   Future<void> _createBill() async {
@@ -107,6 +131,14 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
     final role = ref.watch(authProvider).role;
+    final query = _search.text.trim().toLowerCase();
+    final visibleBills = state.bills.where((bill) {
+      final queryMatched = query.isEmpty ||
+          bill.billCode.toLowerCase().contains(query) ||
+          bill.customerName.toLowerCase().contains(query);
+      final dateMatched = _matchesDate(bill.billDate, _filterDate);
+      return queryMatched && dateMatched;
+    }).toList();
 
     return RefreshIndicator(
       onRefresh: () => ref.read(appStateProvider.notifier).fetchBills(),
@@ -144,16 +176,57 @@ class _BillingPageState extends ConsumerState<BillingPage> {
               ),
             ),
           ),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Find Bills', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Search by Bill ID or Customer',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _filterDate == null
+                              ? 'All dates'
+                              : 'Date: ${DateFormat.yMMMd().format(_filterDate!)}',
+                        ),
+                      ),
+                      TextButton(onPressed: _pickFilterDate, child: const Text('Pick Date')),
+                      if (_filterDate != null)
+                        TextButton(
+                          onPressed: () => setState(() => _filterDate = null),
+                          child: const Text('Clear'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
           if (state.loading) const LinearProgressIndicator(),
           if (state.error != null) Text(state.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ...state.bills.map(
+          ...visibleBills.map(
             (bill) => Card(
               child: ListTile(
-                title: Text('Vehicle ${bill.vehicleNumber}'),
+                title: Text('${bill.billCode} • ${bill.customerName}'),
                 subtitle: Text(
-                  'Total: ${bill.totalAmount.toStringAsFixed(2)} • Payable: ${bill.payableAmount.toStringAsFixed(2)} • ${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}',
+                  'Vehicle: ${bill.vehicleNumber}\n'
+                  'Total: ${bill.totalAmount.toStringAsFixed(2)} • Paid: ${bill.paidAmount.toStringAsFixed(2)}\n'
+                  'Remaining: ${bill.remainingAmount.toStringAsFixed(2)} • ${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}',
                 ),
-                trailing: Chip(label: Text(bill.paymentStatus)),
+                isThreeLine: true,
+                trailing: Chip(label: Text(bill.paymentStatus.toUpperCase())),
               ),
             ),
           ),
