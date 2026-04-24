@@ -203,9 +203,9 @@ const seed = async () => {
 
   console.log('Reset and seed completed successfully.');
   console.log('Seed logins:');
-  console.log('owner@travelfleet.local / Owner@123');
-  console.log('employee@travelfleet.local / Employee@123');
-  console.log('driver@travelfleet.local / Driver@123');
+  console.log('barath@gmail.com / Owner@123');
+  console.log('ajay@gmail.com / Employee@123');
+  console.log('vikram@gmail.com / Driver@123');
 };
 
 seed()
