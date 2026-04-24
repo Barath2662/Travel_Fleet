@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/config/app_config.dart';
 import '../models/app_notification.dart';
 import '../models/bill.dart';
 import '../models/driver.dart';
@@ -224,7 +225,9 @@ class AppStateNotifier extends StateNotifier<AppState> {
     try {
       final api = ref.read(apiServiceProvider);
       final response = await api.post('/payment', payload, token: token);
-      debugPrint('createPayment response: $response');
+      if (AppConfig.logApiResponses) {
+        debugPrint('createPayment response: $response');
+      }
 
       if (response is Map<String, dynamic>) {
         final rawBill = response['bill'];

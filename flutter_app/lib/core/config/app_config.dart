@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Application configuration and constants
 class AppConfig {
   // API Configuration
@@ -12,7 +14,8 @@ class AppConfig {
   /// Optional override via --dart-define=API_BASE_URL for controlled deployments.
   static String get apiBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-    return fromEnv.isNotEmpty ? fromEnv : productionApiBaseUrl;
+    final raw = fromEnv.isNotEmpty ? fromEnv : productionApiBaseUrl;
+    return raw.trim().replaceAll(RegExp(r'/+$'), '');
   }
 
   // App Information
@@ -41,9 +44,9 @@ class AppConfig {
   static const bool enableAnalytics = true;
 
   // Debugging
-  static const bool debugMode = true;
-  static const bool logApiRequests = true;
-  static const bool logApiResponses = true;
+  static bool get debugMode => kDebugMode;
+  static bool get logApiRequests => kDebugMode;
+  static bool get logApiResponses => kDebugMode;
 
   // Pagination
   static const int paginationPageSize = 20;
