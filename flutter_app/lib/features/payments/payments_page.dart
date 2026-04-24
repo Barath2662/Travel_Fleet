@@ -35,15 +35,26 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
       return;
     }
 
-    await ref.read(appStateProvider.notifier).createPayment({
-      'billId': _billId.text.trim(),
-      'amount': double.tryParse(_amount.text) ?? 0,
-      'status': _status,
-      'notes': 'Updated from mobile app',
-    });
+    final amount = double.tryParse(_amount.text.trim());
+    if (amount == null || amount <= 0) {
+      _show('Enter a valid amount greater than 0');
+      return;
+    }
 
-    _billId.clear();
-    _amount.clear();
+    try {
+      await ref.read(appStateProvider.notifier).createPayment({
+        'billId': _billId.text.trim(),
+        'amount': amount,
+        'status': _status,
+        'notes': 'Updated from mobile app',
+      });
+
+      _billId.clear();
+      _amount.clear();
+      _show('Payment saved');
+    } catch (error) {
+      _show(error.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   void _show(String message) {

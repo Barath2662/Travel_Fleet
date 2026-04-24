@@ -202,8 +202,11 @@ class _DriversPageState extends ConsumerState<DriversPage> {
     final role = auth.role;
     final theme = Theme.of(context);
     final dateFmt = DateFormat('dd MMM yyyy');
+    final authUserId = auth.userId;
     final visibleDrivers = role == 'driver'
-        ? state.drivers.where((d) => d.loginEmail != null && d.loginEmail == auth.email).toList()
+      ? state.drivers
+        .where((d) => (authUserId != null && d.userId == authUserId) || d.loginEmail == auth.email)
+        .toList()
         : state.drivers;
 
     return RefreshIndicator(
@@ -315,7 +318,8 @@ class _DriversPageState extends ConsumerState<DriversPage> {
           ),
           const SizedBox(height: 12),
           ...visibleDrivers.map((d) {
-            final isCurrentDriver = role == 'driver' && auth.email == d.loginEmail;
+            final isCurrentDriver = role == 'driver' &&
+                ((authUserId != null && d.userId == authUserId) || auth.email == d.loginEmail);
             return EnhancedCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

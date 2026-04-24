@@ -50,7 +50,12 @@ const createDriver = async (req, res) => {
   res.status(201).json(driver);
 };
 
-const getDrivers = async (_req, res) => {
+const getDrivers = async (req, res) => {
+  if (req.user.role === 'driver') {
+    const ownDriver = await Driver.findOne({ userId: req.user._id }).populate('userId', 'name email role');
+    return res.json(ownDriver ? [ownDriver] : []);
+  }
+
   const drivers = await Driver.find().populate('userId', 'name email role').sort({ createdAt: -1 });
   res.json(drivers);
 };
@@ -75,7 +80,14 @@ const updateDriver = async (req, res) => {
     const linkedUser = await User.findById(driver.userId);
     if (linkedUser) {
       if (req.body.name) linkedUser.name = req.body.name;
-      if (req.body.email) linkedUser.email = req.body.email;
+      if (req.body.email) {
+        const existing = await User.findOne({ email: req.body.email });
+        if (existing && String(existing._id) !== String(linkedUser._id)) {
+          res.status(400);
+          throw new Error('Email already exists');
+        }
+        linkedUser.email = req.body.email;
+      }
       if (req.body.password) linkedUser.password = req.body.password;
       await linkedUser.save();
     }

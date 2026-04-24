@@ -1,5 +1,6 @@
 class BillModel {
   final String id;
+  final DateTime? billDate;
   final String vehicleNumber;
   final double totalAmount;
   final double payableAmount;
@@ -7,6 +8,7 @@ class BillModel {
 
   const BillModel({
     required this.id,
+    this.billDate,
     required this.vehicleNumber,
     required this.totalAmount,
     required this.payableAmount,
@@ -16,6 +18,7 @@ class BillModel {
   factory BillModel.fromJson(Map<String, dynamic> json) {
     return BillModel(
       id: json['_id'] as String,
+      billDate: json['billDate'] != null ? DateTime.tryParse(json['billDate'].toString()) : null,
       vehicleNumber: json['vehicleNumber'] as String? ?? 'N/A',
       totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
       payableAmount: (json['payableAmount'] as num?)?.toDouble() ?? 0,

@@ -151,7 +151,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
               child: ListTile(
                 title: Text('Vehicle ${bill.vehicleNumber}'),
                 subtitle: Text(
-                  'Total: ${bill.totalAmount.toStringAsFixed(2)} • Payable: ${bill.payableAmount.toStringAsFixed(2)} • ${DateFormat.yMMMd().format(DateTime.now())}',
+                  'Total: ${bill.totalAmount.toStringAsFixed(2)} • Payable: ${bill.payableAmount.toStringAsFixed(2)} • ${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}',
                 ),
                 trailing: Chip(label: Text(bill.paymentStatus)),
               ),

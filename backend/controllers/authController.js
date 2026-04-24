@@ -40,7 +40,22 @@ const register = async (req, res) => {
     throw new Error('Email already exists');
   }
 
-  const user = await User.create({ name, email, password, role });
+  const requestedRole = role || 'employee';
+
+  if (requestedRole === 'driver') {
+    res.status(400);
+    throw new Error('Driver accounts must be created from driver management');
+  }
+
+  if (requestedRole === 'owner') {
+    const ownerCount = await User.countDocuments({ role: 'owner' });
+    if (ownerCount > 0) {
+      res.status(403);
+      throw new Error('Owner registration is disabled. Contact existing owner.');
+    }
+  }
+
+  const user = await User.create({ name, email, password, role: requestedRole });
 
   res.status(201).json({
     _id: user._id,

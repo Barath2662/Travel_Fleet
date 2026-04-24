@@ -113,7 +113,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         items: const [
                           DropdownMenuItem(value: 'owner', child: Text('Owner')),
                           DropdownMenuItem(value: 'employee', child: Text('Employee')),
-                          DropdownMenuItem(value: 'driver', child: Text('Driver')),
                         ],
                         onChanged: (value) => setState(() => _role = value ?? 'employee'),
                       ),

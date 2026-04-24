@@ -29,7 +29,9 @@ class _DriverEarningsPageState extends ConsumerState<DriverEarningsPage> {
     try {
       await app.fetchDrivers();
       final drivers = ref.read(appStateProvider).drivers;
-      final me = drivers.where((d) => d.loginEmail == auth.email).toList();
+        final me = drivers
+          .where((d) => (auth.userId != null && d.userId == auth.userId) || d.loginEmail == auth.email)
+          .toList();
       if (me.isEmpty) {
         setState(() {
           _payroll = null;

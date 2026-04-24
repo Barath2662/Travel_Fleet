@@ -1,5 +1,6 @@
 class DriverModel {
   final String id;
+  final String? userId;
   final String name;
   final String phone;
   final String? loginEmail;
@@ -14,6 +15,7 @@ class DriverModel {
 
   const DriverModel({
     required this.id,
+    this.userId,
     required this.name,
     required this.phone,
     this.loginEmail,
@@ -32,6 +34,7 @@ class DriverModel {
 
     return DriverModel(
       id: json['_id'] as String,
+      userId: user is Map<String, dynamic> ? (user['_id'] as String?) : null,
       name: json['name'] as String,
       phone: json['phone'] as String,
       loginEmail: user is Map<String, dynamic> ? (user['email'] as String?) : null,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'driver_dashboard_view.dart';
+import '../trips/trip_tracking_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -46,8 +47,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     final auth = ref.watch(authProvider);
     final state = ref.watch(appStateProvider);
     final theme = Theme.of(context);
+    final authUserId = auth.userId;
     final myDriver = state.drivers
-        .where((d) => d.loginEmail != null && d.loginEmail == auth.email)
+      .where((d) => (authUserId != null && d.userId == authUserId) || d.loginEmail == auth.email)
         .cast<dynamic>()
         .toList();
     final hasDriverProfile = myDriver.isNotEmpty;
@@ -95,17 +97,23 @@ class _HomePageState extends ConsumerState<HomePage> {
             currentTrip: currentTripData,
             upcomingTrips: upcoming,
             onStartTrip: () {
-              // Navigate to Trip tracking or handle start
               if (currentTrip != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Starting Trip...')));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TripTrackingPage(tripId: currentTrip.id, trip: currentTrip),
+                  ),
+                );
               }
             },
             onEndTrip: () {
-              // Navigate to End Trip processing
               if (currentTrip != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ending Trip...')));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TripTrackingPage(tripId: currentTrip.id, trip: currentTrip),
+                  ),
+                );
               }
             },
             onTripTap: (trip) {

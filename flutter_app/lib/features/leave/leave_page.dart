@@ -23,6 +23,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
   void initState() {
     super.initState();
     _reasonController = TextEditingController();
+    Future.microtask(() => ref.read(appStateProvider.notifier).fetchDrivers());
   }
 
   @override
@@ -84,7 +85,9 @@ class _LeavePageState extends ConsumerState<LeavePage> {
       final drivers = ref.read(appStateProvider).drivers;
 
       // Find the driver ID for the current user
-      final me = drivers.where((d) => d.loginEmail == auth.email).toList();
+      final me = drivers
+          .where((d) => (auth.userId != null && d.userId == auth.userId) || d.loginEmail == auth.email)
+          .toList();
       if (me.isEmpty) {
         _show('No linked driver profile found for this account');
         return;
@@ -117,7 +120,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
 
     // Get current driver's leaves
     final currentDriver = state.drivers.firstWhere(
-      (d) => d.loginEmail == auth.email,
+      (d) => (auth.userId != null && d.userId == auth.userId) || d.loginEmail == auth.email,
       orElse: () => DriverModel(
         id: '',
         name: '',
