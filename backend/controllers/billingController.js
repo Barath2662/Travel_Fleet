@@ -1,8 +1,11 @@
 const { body } = require('express-validator');
+const mongoose = require('mongoose');
 const path = require('path');
 const Bill = require('../models/Bill');
 const Trip = require('../models/Trip');
+const Payment = require('../models/Payment');
 const { generateInvoicePdf } = require('../services/pdfService');
+const { buildBillCodeFromId, syncBillFromPayments } = require('../services/billConsistencyService');
 
 const billValidation = [
   body('tripId').optional({ checkFalsy: true }).isMongoId(),
@@ -28,27 +31,6 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const buildNextBillCode = async () => {
-  const latest = await Bill.findOne({}, { billCode: 1 }).sort({ createdAt: -1, _id: -1 });
-  const current = latest?.billCode ? Number(String(latest.billCode).split('-')[1]) : NaN;
-  const next = Number.isFinite(current) ? current + 1 : 1001;
-  return `BILL-${next}`;
-};
-
-const ensureUniqueBillCode = async () => {
-  let attempts = 0;
-  while (attempts < 5) {
-    const candidate = await buildNextBillCode();
-    const exists = await Bill.exists({ billCode: candidate });
-    if (!exists) {
-      return candidate;
-    }
-    attempts += 1;
-  }
-
-  return `BILL-${Date.now()}`;
-};
-
 const computeBillFields = (payload) => {
   const totalKm = Math.max(toNumber(payload.endKm) - toNumber(payload.startKm), 0);
   const kmCharge = totalKm * toNumber(payload.ratePerKm);
@@ -70,6 +52,7 @@ const computeBillFields = (payload) => {
 
 const createBill = async (req, res) => {
   const payload = req.body;
+  const billId = new mongoose.Types.ObjectId();
 
   const trip = payload.tripId
     ? await Trip.findById(payload.tripId).populate('vehicleId', 'number')
@@ -86,8 +69,9 @@ const createBill = async (req, res) => {
   }
 
   const sanitizedPayload = {
+    _id: billId,
     ...(payload.tripId ? { tripId: payload.tripId } : {}),
-    billCode: await ensureUniqueBillCode(),
+    billCode: buildBillCodeFromId(billId),
     customerName: payload.customerName || trip?.customerName || 'N/A',
     billDate: payload.billDate || new Date(),
     tripDate: payload.tripDate || payload.billDate || trip?.pickupDateTime || new Date(),
@@ -155,7 +139,30 @@ const getBills = async (req, res) => {
   }
 
   const bills = await Bill.find(query).populate('tripId').sort({ createdAt: -1 });
-  res.json(bills);
+  const billIds = bills.map((bill) => bill._id);
+
+  const payments = billIds.length
+    ? await Payment.find({ billId: { $in: billIds } }).sort({ createdAt: -1 })
+    : [];
+
+  const paymentsByBill = new Map();
+  for (const payment of payments) {
+    const key = String(payment.billId);
+    const list = paymentsByBill.get(key) || [];
+    list.push(payment);
+    paymentsByBill.set(key, list);
+  }
+
+  const hydratedBills = [];
+  for (const bill of bills) {
+    const billPayments = paymentsByBill.get(String(bill._id)) || [];
+    const synced = await syncBillFromPayments({ bill, payments: billPayments });
+    const plain = synced.toObject();
+    plain.payments = billPayments;
+    hydratedBills.push(plain);
+  }
+
+  res.json(hydratedBills);
 };
 
 const getBillPdf = async (req, res) => {

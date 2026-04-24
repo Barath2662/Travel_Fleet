@@ -24,16 +24,20 @@ class BillModel {
   });
 
   factory BillModel.fromJson(Map<String, dynamic> json) {
+    final id = json['_id'] as String;
+    final rawCode = (json['billCode'] as String? ?? '').trim();
+    final fallbackCode = id.length >= 6 ? 'BILL-${id.substring(0, 6).toUpperCase()}' : 'BILL-${id.toUpperCase()}';
+
     return BillModel(
-      id: json['_id'] as String,
-      billCode: json['billCode'] as String? ?? 'BILL-NA',
+      id: id,
+      billCode: rawCode.isEmpty || rawCode == 'BILL-NA' ? fallbackCode : rawCode,
       customerName: json['customerName'] as String? ?? 'N/A',
       billDate: json['billDate'] != null ? DateTime.tryParse(json['billDate'].toString()) : null,
       vehicleNumber: json['vehicleNumber'] as String? ?? 'N/A',
       totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
       payableAmount: (json['payableAmount'] as num?)?.toDouble() ?? 0,
       paidAmount: (json['paidAmount'] as num?)?.toDouble() ?? 0,
-      remainingAmount: (json['remainingAmount'] as num?)?.toDouble() ?? ((json['payableAmount'] as num?)?.toDouble() ?? 0),
+      remainingAmount: (json['remainingAmount'] as num?)?.toDouble() ?? 0,
       paymentStatus: json['paymentStatus'] as String? ?? 'pending',
     );
   }

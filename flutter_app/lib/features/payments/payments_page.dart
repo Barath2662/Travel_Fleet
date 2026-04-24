@@ -126,6 +126,17 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String _paymentBillLabel(String? billCode, String billId) {
+    final normalized = (billCode ?? '').trim();
+    if (normalized.isNotEmpty) {
+      return normalized;
+    }
+    if (billId.length >= 6) {
+      return 'BILL-${billId.substring(0, 6).toUpperCase()}';
+    }
+    return billId;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
@@ -254,7 +265,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
           ...recentPayments.map(
             (p) => Card(
               child: ListTile(
-                title: Text('${p.billCode ?? p.billId} • ${p.amount.toStringAsFixed(2)}'),
+                title: Text('${_paymentBillLabel(p.billCode, p.billId)} • ${p.amount.toStringAsFixed(2)}'),
                 subtitle: Text('${p.customerName ?? 'Customer'} • ${p.paidAt != null ? DateFormat.yMMMd().add_jm().format(p.paidAt!) : 'No date'}'),
                 trailing: Chip(label: Text(p.status.toUpperCase())),
               ),

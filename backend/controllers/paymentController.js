@@ -1,7 +1,7 @@
 const { body } = require('express-validator');
-const mongoose = require('mongoose');
 const Payment = require('../models/Payment');
 const Bill = require('../models/Bill');
+const { syncBillFromPayments } = require('../services/billConsistencyService');
 
 const paymentValidation = [
   body('billId').isMongoId(),
@@ -23,46 +23,8 @@ const runWithOptionalTransaction = async (session, work) => {
   }
 };
 
-const recomputeBillPaymentStatus = async (billId, session) => {
-  const billQuery = Bill.findById(billId);
-  const paidAggregateQuery = Payment.aggregate([
-    { $match: { billId: new mongoose.Types.ObjectId(String(billId)), status: 'paid' } },
-    { $group: { _id: '$billId', totalPaid: { $sum: '$amount' } } },
-  ]);
-
-  if (session && session.inTransaction()) {
-    billQuery.session(session);
-    paidAggregateQuery.session(session);
-  }
-
-  const [bill, paidAggregate] = await Promise.all([billQuery, paidAggregateQuery]);
-
-  if (!bill) {
-    return null;
-  }
-
-  const totalPaid = paidAggregate.length ? Number(paidAggregate[0].totalPaid) : 0;
-  const payableAmount = Number(bill.payableAmount || 0);
-  const normalizedPaid = Math.max(Math.min(totalPaid, payableAmount), 0);
-  const remainingAmount = Math.max(payableAmount - normalizedPaid, 0);
-
-  bill.paidAmount = normalizedPaid;
-  bill.remainingAmount = remainingAmount;
-
-  if (normalizedPaid <= 0) {
-    bill.paymentStatus = 'pending';
-  } else if (remainingAmount > 0) {
-    bill.paymentStatus = 'partial';
-  } else {
-    bill.paymentStatus = 'paid';
-  }
-
-  await bill.save({ session: session && session.inTransaction() ? session : undefined });
-  return bill;
-};
-
 const createPayment = async (req, res) => {
-  const { billId, amount, status, notes, idempotencyKey } = req.body;
+  const { billId, amount, notes, idempotencyKey } = req.body;
 
   const session = await Payment.startSession();
   let paymentDoc = null;
@@ -77,6 +39,8 @@ const createPayment = async (req, res) => {
         res.status(404);
         throw new Error('Bill not found');
       }
+
+      await syncBillFromPayments({ bill, session });
 
       const requestedAmount = Number(amount);
       if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
@@ -110,7 +74,7 @@ const createPayment = async (req, res) => {
           {
             billId,
             amount: requestedAmount,
-            status: status || 'paid',
+            status: 'paid',
             notes,
             idempotencyKey,
             paidAt: new Date(),
@@ -120,7 +84,10 @@ const createPayment = async (req, res) => {
         { session: session.inTransaction() ? session : undefined }
       ).then((docs) => docs[0]);
 
-      updatedBillDoc = await recomputeBillPaymentStatus(billId, session);
+      const scopedBill = session.inTransaction()
+        ? await Bill.findById(billId).session(session)
+        : await Bill.findById(billId);
+      updatedBillDoc = await syncBillFromPayments({ bill: scopedBill, session });
     });
   } finally {
     await session.endSession();
@@ -133,8 +100,27 @@ const createPayment = async (req, res) => {
 };
 
 const getPayments = async (_req, res) => {
-  const payments = await Payment.find().populate('billId', 'billCode customerName payableAmount paidAmount remainingAmount paymentStatus').sort({ createdAt: -1 });
-  res.json(payments);
+  const payments = await Payment.find()
+    .populate('billId', 'billCode customerName payableAmount paidAmount remainingAmount paymentStatus')
+    .sort({ createdAt: -1 });
+
+  const billsToSync = new Map();
+  for (const payment of payments) {
+    if (!payment.billId || !payment.billId._id) {
+      continue;
+    }
+    billsToSync.set(String(payment.billId._id), payment.billId);
+  }
+
+  for (const bill of billsToSync.values()) {
+    await syncBillFromPayments({ bill });
+  }
+
+  const refreshedPayments = await Payment.find()
+    .populate('billId', 'billCode customerName payableAmount paidAmount remainingAmount paymentStatus')
+    .sort({ createdAt: -1 });
+
+  res.json(refreshedPayments);
 };
 
 const updatePayment = async (req, res) => {
@@ -167,20 +153,20 @@ const updatePayment = async (req, res) => {
   Object.assign(payment, {
     ...req.body,
     amount: req.body.amount !== undefined ? Number(req.body.amount) : payment.amount,
+    status: 'paid',
   });
   payment.updatedBy = req.user._id;
-  if (payment.status === 'paid' && !payment.paidAt) {
-    payment.paidAt = new Date();
-  } else if (payment.status !== 'paid') {
-    payment.paidAt = null;
-  }
+  payment.paidAt = payment.paidAt || new Date();
 
   const session = await Payment.startSession();
   let updatedBillDoc = null;
   try {
     await runWithOptionalTransaction(session, async () => {
       await payment.save({ session: session.inTransaction() ? session : undefined });
-      updatedBillDoc = await recomputeBillPaymentStatus(payment.billId, session);
+      const scopedBill = session.inTransaction()
+        ? await Bill.findById(payment.billId).session(session)
+        : await Bill.findById(payment.billId);
+      updatedBillDoc = await syncBillFromPayments({ bill: scopedBill, session });
     });
   } finally {
     await session.endSession();
