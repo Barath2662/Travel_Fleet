@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../models/trip.dart';
 import '../../providers/app_state_provider.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class TripTrackingPage extends ConsumerStatefulWidget {
   final String tripId;
   final TripModel trip;
@@ -110,6 +112,19 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
       _show('Error getting location: $e');
     } finally {
       setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  Future<void> _openNavigation(String location) async {
+    final query = Uri.encodeComponent(location);
+    final Uri url = Uri.parse("https://www.google.com/maps/search/?api=1&query=$query");
+    
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        _show('Could not launch Google Maps');
+      }
+    } catch (e) {
+      _show('Error opening navigation: $e');
     }
   }
 
@@ -222,6 +237,17 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                       'Pickup Location',
                       widget.trip.pickupLocation,
                     ),
+                    const SizedBox(height: 8),
+                    if (widget.trip.status == 'scheduled' || widget.trip.status == 'in_progress')
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _openNavigation(widget.trip.pickupLocation),
+                          icon: const Icon(Icons.navigation, size: 16),
+                          label: const Text('Navigate to Pickup'),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
                     _buildDetailRow(
                       theme,
                       Icons.directions_car,

@@ -316,35 +316,79 @@ class _TripsPageState extends ConsumerState<TripsPage> {
           if (state.error != null) Text(state.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ...visibleTrips.map(
             (trip) => Card(
-              child: ListTile(
-                title: Text('${trip.customerName} • ${trip.pickupLocation}'),
-                subtitle: Text(
-                  'Contact: ${trip.customerMobile}\n'
-                  'Driver: ${trip.driverName ?? '-'} | Vehicle: ${trip.vehicleNumber ?? '-'}\n'
-                  'Status: ${trip.status} • Days: ${trip.numberOfDays} • Bata: ${trip.driverBataAssigned.toStringAsFixed(0)}',
-                ),
-                isThreeLine: true,
-                trailing: Wrap(
-                  spacing: 8,
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if ((role == 'owner' || role == 'employee') && trip.status != 'completed')
-                      OutlinedButton(
-                        onPressed: () => _assignBata(trip.id, trip.driverBataAssigned),
-                        child: const Text('Assign Bata'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'TRIP ID: ${trip.id.substring(trip.id.length > 6 ? trip.id.length - 6 : 0).toUpperCase()}',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: trip.status == 'in_progress' ? Colors.orange.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            trip.status.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: trip.status == 'in_progress' ? Colors.orange : Colors.green,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('${trip.customerName} • ${trip.pickupLocation}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        'Contact: ${trip.customerMobile}\n'
+                        'Driver: ${trip.driverName ?? '-'} | Vehicle: ${trip.vehicleNumber ?? '-'}\n'
+                        'Days: ${trip.numberOfDays} • Bata: ${trip.driverBataAssigned.toStringAsFixed(0)}',
                       ),
-                    if (role == 'driver' && trip.status == 'scheduled')
-                      OutlinedButton(
-                        onPressed: () => _startTrip(trip.id, trip),
-                        child: const Text('Start'),
-                      ),
-                    if (role == 'driver' && trip.status == 'in_progress')
-                      OutlinedButton(
-                        onPressed: () => _endTrip(trip.id, trip),
-                        child: const Text('End'),
-                      ),
-                    OutlinedButton(
-                      onPressed: () => ref.read(appStateProvider.notifier).addAdvance(trip.id, 1000),
-                      child: const Text('Advance'),
+                      isThreeLine: true,
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        if ((role == 'owner' || role == 'employee') && trip.status != 'completed')
+                          OutlinedButton.icon(
+                            onPressed: () => _assignBata(trip.id, trip.driverBataAssigned),
+                            icon: const Icon(Icons.attach_money, size: 16),
+                            label: const Text('Assign Bata'),
+                          ),
+                        if (role == 'driver' && trip.status == 'scheduled')
+                          FilledButton.icon(
+                            onPressed: () => _startTrip(trip.id, trip),
+                            icon: const Icon(Icons.play_arrow, size: 16),
+                            label: const Text('Start'),
+                          ),
+                        if (role == 'driver' && trip.status == 'in_progress')
+                          FilledButton.icon(
+                            onPressed: () => _endTrip(trip.id, trip),
+                            icon: const Icon(Icons.stop, size: 16),
+                            label: const Text('End'),
+                          ),
+                        OutlinedButton.icon(
+                          onPressed: () => ref.read(appStateProvider.notifier).addAdvance(trip.id, 1000),
+                          icon: const Icon(Icons.money, size: 16),
+                          label: const Text('Advance'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

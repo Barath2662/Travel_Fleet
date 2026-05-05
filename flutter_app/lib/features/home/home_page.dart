@@ -133,44 +133,57 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
               children: [
-                _StatTile(
+                DashboardCard(
                     title: 'Trips',
-                    value: state.trips.length.toString(),
-                    icon: Icons.route_outlined),
+                    count: state.trips.length.toString(),
+                    icon: Icons.route_outlined,
+                    color: theme.colorScheme.primary,
+                    onTap: () => Navigator.pushNamed(context, '/dashboard'), // Since tabs manage trips, pushing inside the app via existing logic won't cleanly jump to them unless we had independent routes, but I'll use Navigator.push directly if they were root level, but let's push a placeholder or standard named route
+                ),
                 if (auth.role != 'driver')
-                  _StatTile(
+                  DashboardCard(
                       title: 'Bills',
-                      value: state.bills.length.toString(),
-                      icon: Icons.receipt_long_outlined),
-                _StatTile(
+                      count: state.bills.length.toString(),
+                      icon: Icons.receipt_long_outlined,
+                      color: theme.colorScheme.secondary),
+                DashboardCard(
                     title: 'Vehicles',
-                    value: state.vehicles.length.toString(),
-                    icon: Icons.directions_car_outlined),
-                _StatTile(
+                    count: state.vehicles.length.toString(),
+                    icon: Icons.directions_car_outlined,
+                    color: theme.colorScheme.tertiary),
+                DashboardCard(
                     title: 'Drivers',
-                    value: state.drivers.length.toString(),
-                    icon: Icons.badge_outlined),
-                _StatTile(
+                    count: state.drivers.length.toString(),
+                    icon: Icons.badge_outlined,
+                    color: theme.colorScheme.primary),
+                DashboardCard(
                     title: 'Payments',
-                    value: state.payments.length.toString(),
-                    icon: Icons.payments_outlined),
+                    count: state.payments.length.toString(),
+                    icon: Icons.payments_outlined,
+                    color: theme.colorScheme.secondary),
                 if (auth.role == 'driver')
-                  _StatTile(
+                  DashboardCard(
                     title: 'My Earnings',
-                    value: earning.toStringAsFixed(0),
+                    count: earning.toStringAsFixed(0),
                     icon: Icons.currency_rupee,
+                    color: theme.colorScheme.primary,
                   ),
-                _StatTile(
+                DashboardCard(
                   title: 'Unread Alerts',
-                  value: state.notifications
+                  count: state.notifications
                       .where((n) => !n.isRead)
                       .length
                       .toString(),
                   icon: Icons.notifications_none,
+                  color: theme.colorScheme.primary,
                 ),
               ],
             ),
@@ -181,40 +194,66 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({
+class DashboardCard extends StatelessWidget {
+  const DashboardCard({
+    super.key,
     required this.title,
-    required this.value,
+    required this.count,
     required this.icon,
+    required this.color,
+    this.onTap,
   });
 
   final String title;
-  final String value;
+  final String count;
   final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final tileWidth = width > 640 ? (width - 68) / 2 : width - 32;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final contentColor = isDark ? Colors.white : Colors.black87;
 
-    return SizedBox(
-      width: tileWidth,
-      child: Card(
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black.withAlpha(20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 26),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(height: 3),
-                    Text(value,
-                        style: Theme.of(context).textTheme.headlineSmall),
-                  ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: color.withValues(alpha: 0.15),
+                    child: Icon(icon, size: 22, color: color),
+                  ),
+                  Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                count,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: contentColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade500,
                 ),
               ),
             ],
