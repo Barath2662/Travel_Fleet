@@ -165,6 +165,44 @@ class _TripsPageState extends ConsumerState<TripsPage> {
     }
   }
 
+  Future<void> _addAdvance(String tripId) async {
+    final controller = TextEditingController();
+    
+    final amount = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Advance Received'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Advance Amount'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isEmpty) {
+                _show('Enter advance amount');
+                return;
+              }
+              final parsed = double.tryParse(controller.text.trim());
+              if (parsed == null || parsed <= 0) {
+                _show('Enter a valid amount');
+                return;
+              }
+              Navigator.pop(context, parsed);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (amount == null) return;
+    await ref.read(appStateProvider.notifier).addAdvance(tripId, amount);
+    _show('Advance amount added');
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
@@ -384,7 +422,7 @@ class _TripsPageState extends ConsumerState<TripsPage> {
                             label: const Text('End'),
                           ),
                         OutlinedButton.icon(
-                          onPressed: () => ref.read(appStateProvider.notifier).addAdvance(trip.id, 1000),
+                          onPressed: () => _addAdvance(trip.id),
                           icon: const Icon(Icons.money, size: 16),
                           label: const Text('Advance'),
                         ),

@@ -139,42 +139,51 @@ class _HomePageState extends ConsumerState<HomePage> {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.1,
+              childAspectRatio: 1.2,
               children: [
                 DashboardCard(
                     title: 'Trips',
                     count: state.trips.length.toString(),
                     icon: Icons.route_outlined,
                     color: theme.colorScheme.primary,
-                    onTap: () => Navigator.pushNamed(context, '/dashboard'), // Since tabs manage trips, pushing inside the app via existing logic won't cleanly jump to them unless we had independent routes, but I'll use Navigator.push directly if they were root level, but let's push a placeholder or standard named route
+                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
                 ),
                 if (auth.role != 'driver')
                   DashboardCard(
                       title: 'Bills',
                       count: state.bills.length.toString(),
                       icon: Icons.receipt_long_outlined,
-                      color: theme.colorScheme.secondary),
+                      color: theme.colorScheme.secondary,
+                      onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                  ),
                 DashboardCard(
                     title: 'Vehicles',
                     count: state.vehicles.length.toString(),
                     icon: Icons.directions_car_outlined,
-                    color: theme.colorScheme.tertiary),
+                    color: theme.colorScheme.tertiary,
+                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                ),
                 DashboardCard(
                     title: 'Drivers',
                     count: state.drivers.length.toString(),
                     icon: Icons.badge_outlined,
-                    color: theme.colorScheme.primary),
+                    color: theme.colorScheme.primary,
+                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                ),
                 DashboardCard(
                     title: 'Payments',
                     count: state.payments.length.toString(),
                     icon: Icons.payments_outlined,
-                    color: theme.colorScheme.secondary),
+                    color: theme.colorScheme.secondary,
+                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                ),
                 if (auth.role == 'driver')
                   DashboardCard(
                     title: 'My Earnings',
                     count: earning.toStringAsFixed(0),
                     icon: Icons.currency_rupee,
                     color: theme.colorScheme.primary,
+                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
                   ),
                 DashboardCard(
                   title: 'Unread Alerts',
@@ -184,6 +193,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       .toString(),
                   icon: Icons.notifications_none,
                   color: theme.colorScheme.primary,
+                  onTap: () => Navigator.pushNamed(context, '/dashboard'),
                 ),
               ],
             ),
@@ -243,17 +253,23 @@ class DashboardCard extends StatelessWidget {
               const Spacer(),
               Text(
                 count,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: contentColor,
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade500,
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade500,
+                  ),
                 ),
               ),
             ],
