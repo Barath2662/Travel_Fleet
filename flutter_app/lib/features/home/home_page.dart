@@ -15,6 +15,25 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  int? _navIndexFor(String? role, _DashboardShortcut shortcut) {
+    switch (role) {
+      case 'owner':
+        return _ownerShortcuts[shortcut];
+      case 'employee':
+        return _employeeShortcuts[shortcut];
+      case 'driver':
+        return _driverShortcuts[shortcut];
+      default:
+        return null;
+    }
+  }
+
+  void _goToShortcut(String? role, _DashboardShortcut shortcut) {
+    final index = _navIndexFor(role, shortcut);
+    if (index == null) return;
+    ref.read(dashboardNavIndexProvider.notifier).state = index;
+  }
+
   double _driverEarnings(dynamic driver) {
     final salaryFromDays = driver.totalWorkingDays * driver.salaryPerDay;
     final salaryFromHours =
@@ -147,7 +166,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     count: state.trips.length.toString(),
                     icon: Icons.route_outlined,
                     color: theme.colorScheme.primary,
-                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 1,
+                    onTap: () => _goToShortcut(auth.role, _DashboardShortcut.trips),
                 ),
                 if (auth.role != 'driver')
                   DashboardCard(
@@ -155,28 +174,28 @@ class _HomePageState extends ConsumerState<HomePage> {
                       count: state.bills.length.toString(),
                       icon: Icons.receipt_long_outlined,
                       color: theme.colorScheme.secondary,
-                      onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 5,
+                      onTap: () => _goToShortcut(auth.role, _DashboardShortcut.billing),
                   ),
                 DashboardCard(
                     title: 'Vehicles',
                     count: state.vehicles.length.toString(),
                     icon: Icons.directions_car_outlined,
                     color: theme.colorScheme.tertiary,
-                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 2,
+                    onTap: () => _goToShortcut(auth.role, _DashboardShortcut.vehicles),
                 ),
                 DashboardCard(
                     title: 'Drivers',
                     count: state.drivers.length.toString(),
                     icon: Icons.badge_outlined,
                     color: theme.colorScheme.primary,
-                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 3,
+                    onTap: () => _goToShortcut(auth.role, _DashboardShortcut.drivers),
                 ),
                 DashboardCard(
                     title: 'Payments',
                     count: state.payments.length.toString(),
                     icon: Icons.payments_outlined,
                     color: theme.colorScheme.secondary,
-                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 6,
+                    onTap: () => _goToShortcut(auth.role, _DashboardShortcut.payments),
                 ),
                 if (auth.role == 'driver')
                   DashboardCard(
@@ -184,7 +203,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     count: earning.toStringAsFixed(0),
                     icon: Icons.currency_rupee,
                     color: theme.colorScheme.primary,
-                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 3,
+                    onTap: () => _goToShortcut(auth.role, _DashboardShortcut.earnings),
                   ),
                 DashboardCard(
                   title: 'Unread Alerts',
@@ -194,7 +213,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       .toString(),
                   icon: Icons.notifications_none,
                   color: theme.colorScheme.primary,
-                  onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 7,
+                  onTap: () => _goToShortcut(auth.role, _DashboardShortcut.alerts),
                 ),
               ],
             ),
@@ -204,6 +223,40 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 }
+
+enum _DashboardShortcut {
+  trips,
+  billing,
+  vehicles,
+  drivers,
+  payments,
+  alerts,
+  earnings,
+}
+
+const Map<_DashboardShortcut, int> _ownerShortcuts = {
+  _DashboardShortcut.trips: 1,
+  _DashboardShortcut.vehicles: 2,
+  _DashboardShortcut.drivers: 3,
+  _DashboardShortcut.billing: 5,
+  _DashboardShortcut.payments: 6,
+  _DashboardShortcut.alerts: 7,
+};
+
+const Map<_DashboardShortcut, int> _employeeShortcuts = {
+  _DashboardShortcut.trips: 1,
+  _DashboardShortcut.vehicles: 2,
+  _DashboardShortcut.drivers: 3,
+  _DashboardShortcut.billing: 5,
+  _DashboardShortcut.payments: 6,
+  _DashboardShortcut.alerts: 7,
+};
+
+const Map<_DashboardShortcut, int> _driverShortcuts = {
+  _DashboardShortcut.trips: 1,
+  _DashboardShortcut.earnings: 3,
+  _DashboardShortcut.alerts: 4,
+};
 
 class DashboardCard extends StatelessWidget {
   const DashboardCard({
