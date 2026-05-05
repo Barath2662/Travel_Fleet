@@ -10,6 +10,7 @@ import '../trips/trips_page.dart';
 import '../drivers/driver_earnings_page.dart';
 import '../leave/leave_page.dart';
 import '../../routes/app_router.dart';
+import '../../providers/dashboard_nav_provider.dart';
 
 class DriverDashboardPage extends ConsumerStatefulWidget {
   const DriverDashboardPage({super.key});
@@ -20,13 +21,6 @@ class DriverDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
-  late int _index;
-
-  @override
-  void initState() {
-    super.initState();
-    _index = 0;
-  }
 
   Future<void> _logout() async {
     await ref.read(authProvider.notifier).logout();
@@ -39,6 +33,7 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
     final auth = ref.watch(authProvider);
     final isWide = MediaQuery.of(context).size.width >= 900;
     final theme = Theme.of(context);
+    int currentIndex = ref.watch(dashboardNavIndexProvider);
 
     final menuItems = [
       const _MenuItem(
@@ -79,14 +74,14 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
       ),
     ];
 
-    if (_index >= menuItems.length) {
-      _index = 0;
+    if (currentIndex >= menuItems.length) {
+      currentIndex = 0;
     }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${menuItems[_index].label} • Driver',
+          '${menuItems[currentIndex].label} • Driver',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -114,7 +109,7 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
                         itemCount: menuItems.length,
                         itemBuilder: (context, i) {
                           final item = menuItems[i];
-                          final isSelected = _index == i;
+                          final isSelected = currentIndex == i;
                           return ListTile(
                             leading: Icon(
                               item.icon,
@@ -136,7 +131,7 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
                             selected: isSelected,
                             selectedTileColor: Colors.orange.withValues(alpha: 0.1),
                             onTap: () {
-                              setState(() => _index = i);
+                              ref.read(dashboardNavIndexProvider.notifier).state = i;
                               Navigator.pop(context);
                             },
                           );
@@ -157,12 +152,12 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
         children: [
           if (isWide)
             NavigationRail(
-              selectedIndex: _index,
+              selectedIndex: currentIndex,
               labelType: NavigationRailLabelType.all,
               minWidth: 100,
               groupAlignment: 0.0,
               onDestinationSelected: (value) =>
-                  setState(() => _index = value),
+                  ref.read(dashboardNavIndexProvider.notifier).state = value,
               destinations: menuItems
                   .map((item) => NavigationRailDestination(
                         icon: Icon(item.icon),
@@ -174,13 +169,13 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: Padding(
-                key: ValueKey(_index),
+                key: ValueKey(currentIndex),
                 padding: const EdgeInsets.all(8),
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1200),
-                    child: menuItems[_index].page,
+                    child: menuItems[currentIndex].page,
                   ),
                 ),
               ),

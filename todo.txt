@@ -1,0 +1,119 @@
+🎯 Objective
+
+Ensure that dashboard buttons (cards) correctly navigate to their respective pages (Trips, Bills, Vehicles, etc.), using the existing navigation system, without breaking anything.
+
+⚠️ STRICT RULES
+❌ Do NOT change existing navigation architecture
+❌ Do NOT create duplicate screens
+❌ Do NOT modify backend or logic
+❌ Do NOT break bottom navigation / tabs (if present)
+
+✅ Only fix dashboard click → navigation mapping
+
+🧭 1. IDENTIFY CURRENT NAVIGATION TYPE (IMPORTANT)
+
+Check what your app uses:
+
+Case A: Navigator.push (separate pages)
+Case B: BottomNavigationBar / IndexedStack (tabs)
+✅ 2. FIX BASED ON YOUR APP TYPE
+✅ CASE A: USING Navigator.push
+Fix dashboard card:
+InkWell(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TripsPage()),
+    );
+  },
+  child: DashboardCard(title: "Trips", ...)
+)
+✅ CASE B: USING BOTTOM NAVIGATION (MOST COMMON)
+
+👉 THIS is likely your case (why it's not navigating)
+
+Problem:
+
+Dashboard is NOT changing tab index
+
+✅ Fix: Use shared index controller
+Step 1: Create global index (if not already)
+ValueNotifier<int> navIndex = ValueNotifier(0);
+Step 2: Use it in main screen
+ValueListenableBuilder<int>(
+  valueListenable: navIndex,
+  builder: (context, index, _) {
+    return IndexedStack(
+      index: index,
+      children: [
+        HomePage(),
+        TripsPage(),
+        BillsPage(),
+      ],
+    );
+  },
+)
+Step 3: FIX Dashboard click
+InkWell(
+  onTap: () {
+    navIndex.value = 1; // Trips tab index
+  },
+  child: DashboardCard(title: "Trips")
+)
+🚨 IMPORTANT:
+Do NOT use Navigator.push if app uses tabs
+Always update tab index instead
+🧪 3. DEBUG CHECKLIST
+
+If still not working, verify:
+
+✅ onTap is NOT null
+✅ Correct index mapping
+✅ Widget is not blocked by another GestureDetector
+✅ Context is valid (inside Scaffold)
+🧱 4. SAFE DASHBOARD BUTTON STRUCTURE
+
+Use this:
+
+InkWell(
+  borderRadius: BorderRadius.circular(16),
+  onTap: () {
+    // navigation logic here
+  },
+  child: Card(
+    child: Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.route),
+          SizedBox(height: 8),
+          Text("Trips"),
+        ],
+      ),
+    ),
+  ),
+)
+🧹 5. ENSURE NO ERRORS / WARNINGS
+Remove unused onTap parameters
+Ensure no null callbacks
+Fix deprecated theme fields (surface, onSurface)
+
+Run:
+
+flutter analyze
+
+✅ Must return: No issues found
+
+✅ EXPECTED RESULT
+Clicking “Trips” → opens Trips page
+Clicking “Bills” → opens Bills page
+Works exactly like menu navigation
+No UI break
+No warnings / errors
+🔥 Final Insight
+
+Your issue is almost certainly:
+👉 Dashboard is NOT connected to your navigation state (tab index or route)
+
+This prompt fixes that without touching your existing system.

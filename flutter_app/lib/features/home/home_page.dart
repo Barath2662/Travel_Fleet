@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_nav_provider.dart';
 import 'driver_dashboard_view.dart';
 import '../trips/trip_tracking_page.dart';
 
@@ -146,7 +147,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     count: state.trips.length.toString(),
                     icon: Icons.route_outlined,
                     color: theme.colorScheme.primary,
-                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 1,
                 ),
                 if (auth.role != 'driver')
                   DashboardCard(
@@ -154,28 +155,28 @@ class _HomePageState extends ConsumerState<HomePage> {
                       count: state.bills.length.toString(),
                       icon: Icons.receipt_long_outlined,
                       color: theme.colorScheme.secondary,
-                      onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                      onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 5,
                   ),
                 DashboardCard(
                     title: 'Vehicles',
                     count: state.vehicles.length.toString(),
                     icon: Icons.directions_car_outlined,
                     color: theme.colorScheme.tertiary,
-                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 2,
                 ),
                 DashboardCard(
                     title: 'Drivers',
                     count: state.drivers.length.toString(),
                     icon: Icons.badge_outlined,
                     color: theme.colorScheme.primary,
-                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 3,
                 ),
                 DashboardCard(
                     title: 'Payments',
                     count: state.payments.length.toString(),
                     icon: Icons.payments_outlined,
                     color: theme.colorScheme.secondary,
-                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 6,
                 ),
                 if (auth.role == 'driver')
                   DashboardCard(
@@ -183,7 +184,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     count: earning.toStringAsFixed(0),
                     icon: Icons.currency_rupee,
                     color: theme.colorScheme.primary,
-                    onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                    onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 3,
                   ),
                 DashboardCard(
                   title: 'Unread Alerts',
@@ -193,7 +194,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       .toString(),
                   icon: Icons.notifications_none,
                   color: theme.colorScheme.primary,
-                  onTap: () => Navigator.pushNamed(context, '/dashboard'),
+                  onTap: () => ref.read(dashboardNavIndexProvider.notifier).state = 7,
                 ),
               ],
             ),
