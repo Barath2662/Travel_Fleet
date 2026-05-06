@@ -2,10 +2,11 @@ const { body } = require('express-validator');
 const mongoose = require('mongoose');
 const path = require('path');
 const Bill = require('../models/Bill');
+const BillSequence = require('../models/BillSequence');
 const Trip = require('../models/Trip');
 const Payment = require('../models/Payment');
 const { generateInvoicePdf } = require('../services/pdfService');
-const { buildBillCodeFromId, syncBillFromPayments } = require('../services/billConsistencyService');
+const { formatBillCode, syncBillFromPayments } = require('../services/billConsistencyService');
 
 const billValidation = [
   body('tripId').optional({ checkFalsy: true }).isMongoId(),
@@ -50,6 +51,11 @@ const computeBillFields = (payload) => {
   return { totalKm, kmCharge, totalAmount, payableAmount: Math.max(payableAmount, 0) };
 };
 
+const sumTripAdvances = (trip) => {
+  if (!trip || !Array.isArray(trip.advances)) return 0;
+  return trip.advances.reduce((total, item) => total + toNumber(item.amount), 0);
+};
+
 const createBill = async (req, res) => {
   const payload = req.body;
   const billId = new mongoose.Types.ObjectId();
@@ -68,10 +74,25 @@ const createBill = async (req, res) => {
     throw new Error('Bill can only be generated for completed trips');
   }
 
+  const billDateForSequence = payload.billDate ? new Date(payload.billDate) : new Date();
+  const billYear = billDateForSequence.getFullYear();
+  const sequenceDoc = await BillSequence.findOneAndUpdate(
+    { year: billYear },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const tripAdvanceTotal = sumTripAdvances(trip);
+  const advanceReceived = payload.advanceReceived !== undefined
+    ? Math.max(toNumber(payload.advanceReceived), 0)
+    : Math.max(tripAdvanceTotal, 0);
+
   const sanitizedPayload = {
     _id: billId,
     ...(payload.tripId ? { tripId: payload.tripId } : {}),
-    billCode: buildBillCodeFromId(billId),
+    billCode: formatBillCode(billYear, sequenceDoc.seq),
+    billYear,
+    billSequence: sequenceDoc.seq,
     customerName: payload.customerName || trip?.customerName || 'N/A',
     billDate: payload.billDate || new Date(),
     tripDate: payload.tripDate || payload.billDate || trip?.pickupDateTime || new Date(),
@@ -91,7 +112,7 @@ const createBill = async (req, res) => {
     fastagCharges: Math.max(toNumber(payload.fastagCharges, toNumber(trip?.fastagAmount)), 0),
     permitCharges: Math.max(toNumber(payload.permitCharges, toNumber(trip?.permitAmount)), 0),
     parkingCharges: Math.max(toNumber(payload.parkingCharges, toNumber(trip?.parkingAmount)), 0),
-    advanceReceived: Math.max(toNumber(payload.advanceReceived), 0),
+    advanceReceived,
   };
 
   if (sanitizedPayload.endKm < sanitizedPayload.startKm) {
@@ -133,13 +154,42 @@ const getBills = async (req, res) => {
     }
   }
 
-  if (req.query.q) {
-    const pattern = new RegExp(String(req.query.q).trim(), 'i');
-    query.$or = [{ billCode: pattern }, { customerName: pattern }];
-  }
+  const bills = await Bill.find(query)
+    .populate({
+      path: 'tripId',
+      populate: [
+        { path: 'driverId', select: 'name' },
+        { path: 'vehicleId', select: 'number' },
+      ],
+    })
+    .sort({ createdAt: -1 });
 
-  const bills = await Bill.find(query).populate('tripId').sort({ createdAt: -1 });
-  const billIds = bills.map((bill) => bill._id);
+  const search = String(req.query.q || '').trim().toLowerCase();
+  const filteredBills = search
+    ? bills.filter((bill) => {
+        const trip = bill.tripId || {};
+        const driver = trip.driverId || {};
+        const vehicle = trip.vehicleId || {};
+        const haystack = [
+          bill.billCode,
+          bill.customerName,
+          bill.vehicleNumber,
+          bill.paymentStatus,
+          String(bill._id),
+          trip._id ? String(trip._id) : '',
+          trip.customerName,
+          trip.pickupLocation,
+          driver.name,
+          vehicle.number,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(search);
+      })
+    : bills;
+
+  const billIds = filteredBills.map((bill) => bill._id);
 
   const payments = billIds.length
     ? await Payment.find({ billId: { $in: billIds } }).sort({ createdAt: -1 })
@@ -154,7 +204,7 @@ const getBills = async (req, res) => {
   }
 
   const hydratedBills = [];
-  for (const bill of bills) {
+  for (const bill of filteredBills) {
     const billPayments = paymentsByBill.get(String(bill._id)) || [];
     const synced = await syncBillFromPayments({ bill, payments: billPayments });
     const plain = synced.toObject();

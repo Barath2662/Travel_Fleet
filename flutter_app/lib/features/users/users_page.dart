@@ -56,6 +56,15 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     _show('User deleted');
   }
 
+  Future<void> _approveLeave(String userId, String leaveId, String status) async {
+    await ref.read(appStateProvider.notifier).approveEmployeeLeave(
+          userId,
+          leaveId: leaveId,
+          status: status,
+        );
+    _show('Leave marked as $status');
+  }
+
   void _show(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -77,6 +86,35 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (state.users.isNotEmpty) ...[
+          Text('Pending Employee Leaves', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          ...state.users.where((u) => u.role == 'employee').expand((user) {
+            final pending = user.leaves.where((l) => l.status == 'pending').toList();
+            return pending.map(
+              (leave) => Card(
+                child: ListTile(
+                  title: Text('${user.name} • ${leave.from.toLocal().toString().split(' ').first} to ${leave.to.toLocal().toString().split(' ').first}'),
+                  subtitle: Text(leave.reason),
+                  trailing: Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => _approveLeave(user.id, leave.id, 'rejected'),
+                        child: const Text('Reject'),
+                      ),
+                      FilledButton(
+                        onPressed: () => _approveLeave(user.id, leave.id, 'approved'),
+                        child: const Text('Approve'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
+        ],
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -123,7 +161,9 @@ class _UsersPageState extends ConsumerState<UsersPage> {
           (user) => Card(
             child: ListTile(
               title: Text(user.name),
-              subtitle: Text('${user.email}\nRole: ${user.role}'),
+              subtitle: Text(
+                '${user.email}\nRole: ${user.role}\nLeaves: ${user.leaves.length}',
+              ),
               isThreeLine: true,
               trailing: user.id == ref.watch(authProvider).userId
                   ? const Chip(label: Text('You'))

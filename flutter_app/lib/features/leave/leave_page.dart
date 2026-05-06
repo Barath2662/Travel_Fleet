@@ -2,9 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/widgets/enhanced_widgets.dart';
+import '../../models/app_user.dart';
 import '../../models/driver.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart' hide AuthState;
+
+class _LeaveView {
+  final DateTime from;
+  final DateTime to;
+  final String reason;
+  final String status;
+
+  const _LeaveView({
+    required this.from,
+    required this.to,
+    required this.reason,
+    required this.status,
+  });
+
+  factory _LeaveView.fromDriver(DriverLeaveModel leave) {
+    return _LeaveView(
+      from: leave.from,
+      to: leave.to,
+      reason: leave.reason,
+      status: leave.status,
+    );
+  }
+
+  factory _LeaveView.fromUser(UserLeaveModel leave) {
+    return _LeaveView(
+      from: leave.from,
+      to: leave.to,
+      reason: leave.reason,
+      status: leave.status,
+    );
+  }
+}
 
 class LeavePage extends ConsumerStatefulWidget {
   const LeavePage({super.key});
@@ -23,7 +56,11 @@ class _LeavePageState extends ConsumerState<LeavePage> {
   void initState() {
     super.initState();
     _reasonController = TextEditingController();
-    Future.microtask(() => ref.read(appStateProvider.notifier).fetchDrivers());
+    Future.microtask(() async {
+      final app = ref.read(appStateProvider.notifier);
+      await app.fetchDrivers();
+      await app.fetchProfile();
+    });
   }
 
   @override
@@ -82,24 +119,37 @@ class _LeavePageState extends ConsumerState<LeavePage> {
     setState(() => _isSubmitting = true);
     try {
       final auth = ref.read(authProvider);
-      final drivers = ref.read(appStateProvider).drivers;
+      final app = ref.read(appStateProvider.notifier);
 
-      // Find the driver ID for the current user
-      final me = drivers
-          .where((d) => (auth.userId != null && d.userId == auth.userId) || d.loginEmail == auth.email)
-          .toList();
-      if (me.isEmpty) {
-        _show('No linked driver profile found for this account');
-        return;
+      if (auth.role == 'employee') {
+        if (auth.userId == null) {
+          _show('No linked employee profile found for this account');
+          return;
+        }
+        await app.applyEmployeeLeave(
+          auth.userId!,
+          from: _fromDate!,
+          to: _toDate!,
+          reason: _reasonController.text.trim(),
+        );
+      } else {
+        final drivers = ref.read(appStateProvider).drivers;
+        final me = drivers
+            .where((d) => (auth.userId != null && d.userId == auth.userId) || d.loginEmail == auth.email)
+            .toList();
+        if (me.isEmpty) {
+          _show('No linked driver profile found for this account');
+          return;
+        }
+        final currentDriver = me.first;
+
+        await app.applyDriverLeave(
+          currentDriver.id,
+          from: _fromDate!,
+          to: _toDate!,
+          reason: _reasonController.text.trim(),
+        );
       }
-      final currentDriver = me.first;
-
-      await ref.read(appStateProvider.notifier).applyDriverLeave(
-        currentDriver.id,
-        from: _fromDate!,
-        to: _toDate!,
-        reason: _reasonController.text.trim(),
-      );
 
       _show('Leave application submitted');
       _fromDate = null;
@@ -118,7 +168,8 @@ class _LeavePageState extends ConsumerState<LeavePage> {
     final auth = ref.watch(authProvider);
     final state = ref.watch(appStateProvider);
 
-    // Get current driver's leaves
+    final isEmployee = auth.role == 'employee';
+    final currentUser = state.currentUser;
     final currentDriver = state.drivers.firstWhere(
       (d) => (auth.userId != null && d.userId == auth.userId) || d.loginEmail == auth.email,
       orElse: () => DriverModel(
@@ -130,12 +181,16 @@ class _LeavePageState extends ConsumerState<LeavePage> {
       ),
     );
 
-    final hasDriverProfile = currentDriver.id.isNotEmpty;
+    final hasProfile = isEmployee ? (currentUser?.id.isNotEmpty ?? false) : currentDriver.id.isNotEmpty;
 
-    final leaves = currentDriver.leaves;
-    final approvedLeaves = leaves.where((l) => l.status == 'approved').toList();
-    final pendingLeaves = leaves.where((l) => l.status == 'pending').toList();
-    final rejectedLeaves = leaves.where((l) => l.status == 'rejected').toList();
+    final employeeLeaves = currentUser?.leaves ?? const <UserLeaveModel>[];
+    final driverLeaves = currentDriver.leaves;
+    final leaveItems = isEmployee
+      ? employeeLeaves.map(_LeaveView.fromUser).toList()
+      : driverLeaves.map(_LeaveView.fromDriver).toList();
+    final approvedLeaves = leaveItems.where((l) => l.status == 'approved').toList();
+    final pendingLeaves = leaveItems.where((l) => l.status == 'pending').toList();
+    final rejectedLeaves = leaveItems.where((l) => l.status == 'rejected').toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -253,7 +308,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: (!hasDriverProfile || _isSubmitting) ? null : _applyLeave,
+                        onPressed: (!hasProfile || _isSubmitting) ? null : _applyLeave,
                         icon: _isSubmitting
                             ? const SizedBox(
                                 width: 20,
@@ -262,17 +317,17 @@ class _LeavePageState extends ConsumerState<LeavePage> {
                               )
                             : const Icon(Icons.send),
                         label: Text(
-                          !hasDriverProfile
-                              ? 'Driver profile required'
+                          !hasProfile
+                              ? 'Profile required'
                               : (_isSubmitting ? 'Submitting...' : 'Submit Leave Request'),
                         ),
                       ),
                     ),
-                    if (!hasDriverProfile)
+                    if (!hasProfile)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Text(
-                          'This account does not have a linked driver profile.',
+                          'This account does not have a linked profile.',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                         ),
                       ),
@@ -282,7 +337,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
             ),
             const SizedBox(height: 24),
             // Leave Statistics
-            if (leaves.isNotEmpty) ...[
+            if (leaveItems.isNotEmpty) ...[
               Row(
                 children: [
                   Expanded(
@@ -316,7 +371,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
               const SizedBox(height: 24),
             ],
             // Leave History
-            if (leaves.isEmpty)
+            if (leaveItems.isEmpty)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
@@ -346,7 +401,7 @@ class _LeavePageState extends ConsumerState<LeavePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...leaves.map((leave) {
+              ...leaveItems.map((leave) {
                 final statusColor = leave.status == 'approved'
                     ? Colors.green
                     : leave.status == 'pending'

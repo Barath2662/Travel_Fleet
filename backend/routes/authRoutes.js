@@ -6,6 +6,8 @@ const {
 	createUser,
 	getProfile,
 	updateProfile,
+	applyUserLeave,
+	approveUserLeave,
 	registerValidation,
 	loginValidation,
 	createUserValidation,
@@ -14,6 +16,8 @@ const {
 	updateUser,
 	deleteUser,
 	updateProfileValidation,
+	applyLeaveValidation,
+	approveLeaveValidation,
 } = require('../controllers/authController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
@@ -29,5 +33,23 @@ router.put('/users/:id', protect, authorizeRoles('owner'), userIdParamValidation
 router.delete('/users/:id', protect, authorizeRoles('owner'), userIdParamValidation, validate, deleteUser);
 router.get('/profile', protect, getProfile);
 router.put('/profile', protect, updateProfileValidation, validate, updateProfile);
+router.post(
+	'/users/:id/leave',
+	protect,
+	authorizeRoles('owner', 'employee'),
+	userIdParamValidation,
+	applyLeaveValidation,
+	validate,
+	applyUserLeave
+);
+router.put(
+	'/users/:id/leave/approve',
+	protect,
+	authorizeRoles('owner'),
+	userIdParamValidation,
+	approveLeaveValidation,
+	validate,
+	approveUserLeave
+);
 
 module.exports = router;

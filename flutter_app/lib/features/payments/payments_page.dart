@@ -146,7 +146,11 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     final visibleBills = state.bills.where((bill) {
       final queryMatch = search.isEmpty ||
           bill.billCode.toLowerCase().contains(search) ||
-          bill.customerName.toLowerCase().contains(search);
+          bill.customerName.toLowerCase().contains(search) ||
+          bill.vehicleNumber.toLowerCase().contains(search) ||
+          (bill.tripId ?? '').toLowerCase().contains(search) ||
+          (bill.driverName ?? '').toLowerCase().contains(search) ||
+          bill.paymentStatus.toLowerCase().contains(search);
       final statusMatch = _statusFilter == 'all' || bill.paymentStatus == _statusFilter;
       final dateMatch = _matchesDate(bill.billDate, _filterDate);
       return queryMatch && statusMatch && dateMatch;
@@ -226,8 +230,9 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                     Text('${bill.billCode} • ${bill.customerName}', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 6),
                     Text('Date: ${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}'),
-                    Text('Total: ${bill.totalAmount.toStringAsFixed(2)} • Payable: ${bill.payableAmount.toStringAsFixed(2)}'),
-                    Text('Paid: ${bill.paidAmount.toStringAsFixed(2)} • Remaining: ${bill.remainingAmount.toStringAsFixed(2)}'),
+                    Text('Total: ${bill.totalAmount.toStringAsFixed(2)} • Advance: ${bill.advanceReceived.toStringAsFixed(2)}'),
+                    Text('Payable: ${bill.payableAmount.toStringAsFixed(2)} • Paid: ${bill.paidAmount.toStringAsFixed(2)}'),
+                    Text('Remaining: ${bill.remainingAmount.toStringAsFixed(2)}'),
                     const SizedBox(height: 10),
                     Row(
                       children: [

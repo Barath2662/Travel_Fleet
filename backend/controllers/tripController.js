@@ -2,7 +2,9 @@ const { body } = require('express-validator');
 const Trip = require('../models/Trip');
 const Vehicle = require('../models/Vehicle');
 const Driver = require('../models/Driver');
+const Bill = require('../models/Bill');
 const VehicleBataRate = require('../models/VehicleBataRate');
+const { syncBillFromPayments } = require('../services/billConsistencyService');
 
 const tripValidation = [
   body('pickupDateTime').isISO8601(),
@@ -38,6 +40,30 @@ const routePointValidation = [
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const getTripDateRange = (pickupDateTime, numberOfDays) => {
+  const start = new Date(pickupDateTime || new Date());
+  start.setHours(0, 0, 0, 0);
+  const dayCount = Math.max(toNumber(numberOfDays, 1), 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + dayCount - 1);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const hasLeaveOverlap = (leaves, fromDate, toDate, statuses = ['pending', 'approved']) => {
+  return (leaves || []).some((leave) => {
+    if (!leave || !statuses.includes(leave.status)) return false;
+    const leaveStart = new Date(leave.from);
+    const leaveEnd = new Date(leave.to);
+    return fromDate <= leaveEnd && toDate >= leaveStart;
+  });
+};
+
+const sumTripAdvances = (trip) => {
+  if (!trip || !Array.isArray(trip.advances)) return 0;
+  return trip.advances.reduce((total, item) => total + toNumber(item.amount), 0);
 };
 
 const runWithOptionalTransaction = async (session, work) => {
@@ -78,12 +104,21 @@ const createTrip = async (req, res) => {
     throw new Error('Invalid driver or vehicle');
   }
 
+  const { start, end } = getTripDateRange(payload.pickupDateTime, payload.numberOfDays);
+  if (hasLeaveOverlap(driver.leaves, start, end, ['approved'])) {
+    res.status(400);
+    throw new Error('Driver is on approved leave during the selected trip dates');
+  }
+
   const rate = await VehicleBataRate.findOne({ category: vehicle.category });
   const defaultBata = rate ? Number(rate.amount) : 0;
 
+  const dayCount = Math.max(toNumber(payload.numberOfDays, 1), 1);
   const trip = await Trip.create({
     ...payload,
-    driverBataAssigned: defaultBata,
+    numberOfDays: dayCount,
+    driverBataRatePerDay: defaultBata,
+    driverBataAssigned: defaultBata * dayCount,
     driverBataAssignedBy: req.user._id,
     driverBataAssignedAt: new Date(),
     createdBy: req.user._id,
@@ -136,8 +171,24 @@ const getTrips = async (req, res) => {
   const trips = await Trip.find(query)
     .populate('driverId', 'name phone')
     .populate('vehicleId', 'number')
-    .sort({ createdAt: -1 });
-  res.json(trips);
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const enriched = trips.map((trip) => {
+    const advanceTotal = sumTripAdvances(trip);
+    const lastPoint = Array.isArray(trip.routePoints) && trip.routePoints.length > 0
+      ? trip.routePoints[trip.routePoints.length - 1]
+      : null;
+    return {
+      ...trip,
+      advanceTotal,
+      currentLocation: lastPoint
+        ? { latitude: lastPoint.latitude, longitude: lastPoint.longitude, capturedAt: lastPoint.capturedAt }
+        : null,
+    };
+  });
+
+  res.json(enriched);
 };
 
 const updateTrip = async (req, res) => {
@@ -152,7 +203,58 @@ const updateTrip = async (req, res) => {
     throw new Error('Only scheduled trips can be updated');
   }
 
-  Object.assign(trip, req.body);
+  const allowedFields = [
+    'pickupDateTime',
+    'customerName',
+    'customerMobile',
+    'pickupLocation',
+    'placesToVisit',
+    'numberOfDays',
+    'driverId',
+    'vehicleId',
+  ];
+
+  const updates = {};
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      updates[field] = req.body[field];
+    }
+  }
+
+  const nextPickupDateTime = updates.pickupDateTime || trip.pickupDateTime;
+  const nextNumberOfDays = updates.numberOfDays || trip.numberOfDays;
+  const nextDriverId = updates.driverId || trip.driverId;
+
+  const driver = await Driver.findById(nextDriverId);
+  if (!driver) {
+    res.status(400);
+    throw new Error('Invalid driver');
+  }
+
+  const { start, end } = getTripDateRange(nextPickupDateTime, nextNumberOfDays);
+  if (hasLeaveOverlap(driver.leaves, start, end, ['approved'])) {
+    res.status(400);
+    throw new Error('Driver is on approved leave during the selected trip dates');
+  }
+
+  Object.assign(trip, updates);
+  trip.numberOfDays = Math.max(toNumber(nextNumberOfDays, 1), 1);
+
+  if (req.body.vehicleId !== undefined || req.body.numberOfDays !== undefined || req.body.pickupDateTime !== undefined) {
+    let ratePerDay = trip.driverBataRatePerDay || 0;
+    if (req.body.vehicleId !== undefined) {
+      const vehicle = await Vehicle.findById(trip.vehicleId);
+      if (vehicle) {
+        const rate = await VehicleBataRate.findOne({ category: vehicle.category });
+        if (rate) {
+          ratePerDay = Number(rate.amount);
+        }
+      }
+    }
+    trip.driverBataRatePerDay = ratePerDay;
+    trip.driverBataAssigned = ratePerDay * trip.numberOfDays;
+  }
+
   await trip.save();
   res.json(trip);
 };
@@ -276,6 +378,15 @@ const endTrip = async (req, res) => {
           }))
           .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
       }
+
+      if (!lockedTrip.endLocation && lockedTrip.routePoints.length > 0) {
+        const lastPoint = lockedTrip.routePoints[lockedTrip.routePoints.length - 1];
+        lockedTrip.endLocation = {
+          latitude: lastPoint.latitude,
+          longitude: lastPoint.longitude,
+          capturedAt: lastPoint.capturedAt || new Date(),
+        };
+      }
       lockedTrip.status = 'completed';
 
       const driver = await Driver.findById(lockedTrip.driverId).session(session);
@@ -337,6 +448,16 @@ const addAdvance = async (req, res) => {
   });
 
   await trip.save();
+
+  const bill = await Bill.findOne({ tripId: trip._id });
+  if (bill) {
+    const advanceTotal = sumTripAdvances(trip);
+    bill.advanceReceived = Math.max(advanceTotal, 0);
+    bill.payableAmount = Math.max(Number(bill.totalAmount || 0) - bill.advanceReceived, 0);
+    await bill.save();
+    await syncBillFromPayments({ bill });
+  }
+
   res.json(trip);
 };
 
@@ -359,11 +480,17 @@ const addRoutePoint = async (req, res) => {
     throw new Error('You can only manage your own assigned trips');
   }
 
-  trip.routePoints.push({
+  const point = {
     latitude: Number(req.body.latitude),
     longitude: Number(req.body.longitude),
     capturedAt: new Date(),
-  });
+  };
+
+  if (!trip.startLocation) {
+    trip.startLocation = { ...point };
+  }
+
+  trip.routePoints.push(point);
 
   await trip.save();
   res.json(trip);
@@ -383,7 +510,9 @@ const assignDriverBata = async (req, res) => {
     throw new Error('Cannot assign bata after trip completion');
   }
 
+  const dayCount = Math.max(toNumber(trip.numberOfDays, 1), 1);
   trip.driverBataAssigned = Number(amount);
+  trip.driverBataRatePerDay = dayCount > 0 ? Number(amount) / dayCount : 0;
   trip.driverBataAssignedBy = req.user._id;
   trip.driverBataAssignedAt = new Date();
 

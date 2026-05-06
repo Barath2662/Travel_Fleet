@@ -44,7 +44,7 @@ const generateInvoicePdf = async (bill) => {
       align: 'center',
     });
     doc.font('Helvetica').fontSize(9);
-    doc.text(`Invoice No: ${bill._id}`, rightBoxX + 8, headerTop + 30, {
+    doc.text(`Invoice No: ${bill.billCode || bill._id}`, rightBoxX + 8, headerTop + 30, {
       width: rightBoxWidth - 16,
     });
     doc.text(`Date: ${formatDate(bill.billDate)}`, rightBoxX + 8, headerTop + 44, {
@@ -109,6 +109,7 @@ const generateInvoicePdf = async (bill) => {
     drawRow('Toll', currency(bill.tollCharges));
     drawRow('Permit / Other', currency((bill.permitCharges || 0) + (bill.parkingCharges || 0)));
     drawRow('TOTAL', currency(bill.totalAmount), { isBold: true });
+    drawRow('Advance Received', currency(bill.advanceReceived));
     drawRow('PAYABLE', currency(bill.payableAmount), { isBold: true });
 
     const footerTop = rowY + 16;

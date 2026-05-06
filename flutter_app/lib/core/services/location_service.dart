@@ -1,4 +1,8 @@
-import 'package:geolocator/geolocator.dart';
+import 'dart:math';
+
+import 'package:location/location.dart';
+
+import '../helpers/platform_helper.dart';
 
 class LocationService {
   static final LocationService _instance = LocationService._internal();
@@ -12,49 +16,45 @@ class LocationService {
   /// Check and request location permissions
   Future<bool> requestLocationPermissions() async {
     try {
-      final status = await Geolocator.checkPermission();
-      
-      if (status == LocationPermission.denied) {
-        final result = await Geolocator.requestPermission();
-        return result == LocationPermission.whileInUse ||
-            result == LocationPermission.always;
-      } else if (status == LocationPermission.deniedForever) {
-        await Geolocator.openLocationSettings();
-        return false;
+      if (!isMobilePlatform) return false;
+
+      final location = Location();
+      final serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        final enabled = await location.requestService();
+        if (!enabled) return false;
       }
-      
-      return status == LocationPermission.whileInUse ||
-          status == LocationPermission.always;
+
+      var permission = await location.hasPermission();
+      if (permission == PermissionStatus.denied) {
+        permission = await location.requestPermission();
+      }
+
+      return permission == PermissionStatus.granted ||
+          permission == PermissionStatus.grantedLimited;
     } catch (e) {
       return false;
     }
   }
 
   /// Get current position
-  Future<Position?> getCurrentPosition() async {
+  Future<LocationData?> getCurrentPosition() async {
     try {
+      if (!isMobilePlatform) return null;
       final hasPermission = await requestLocationPermissions();
       if (!hasPermission) return null;
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 5),
-      );
-      
-      return position;
+      final location = Location();
+      return await location.getLocation();
     } catch (e) {
       return null;
     }
   }
 
   /// Get location updates stream
-  Stream<Position> getLocationStream() {
-    return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 10, // Update when moved 10 meters
-      ),
-    );
+  Stream<LocationData> getLocationStream() {
+    final location = Location();
+    return location.onLocationChanged;
   }
 
   /// Get address from coordinates (latitude, longitude format)
@@ -78,16 +78,30 @@ class LocationService {
     double lat2,
     double lon2,
   ) {
-    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
+    const earthRadiusKm = 6371.0;
+    final dLat = _toRadians(lat2 - lat1);
+    final dLon = _toRadians(lon2 - lon1);
+    final a =
+        (sin(dLat / 2) * sin(dLat / 2)) +
+        cos(_toRadians(lat1)) * cos(_toRadians(lat2)) *
+            (sin(dLon / 2) * sin(dLon / 2));
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadiusKm * c;
   }
+
+  double _toRadians(double degrees) => degrees * (pi / 180.0);
 
   /// Check if location services are enabled
   Future<bool> isLocationServiceEnabled() async {
-    return await Geolocator.isLocationServiceEnabled();
+    if (!isMobilePlatform) return false;
+    final location = Location();
+    return await location.serviceEnabled();
   }
 
   /// Open location settings
   Future<bool> openLocationSettings() async {
-    return await Geolocator.openLocationSettings();
+    if (!isMobilePlatform) return false;
+    final location = Location();
+    return await location.requestService();
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/trip.dart';
+import '../../models/driver.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'trip_tracking_page.dart';
@@ -78,13 +79,30 @@ class _TripsPageState extends ConsumerState<TripsPage> {
       return;
     }
 
+    final dayCount = int.tryParse(_days.text) ?? 1;
+    if (_driverId != null) {
+      final drivers = ref.read(appStateProvider).drivers;
+      final selected = drivers.firstWhere(
+        (d) => d.id == _driverId,
+        orElse: () => drivers.isNotEmpty ? drivers.first : const DriverModel(id: '', name: '', phone: '', totalWorkingHours: 0, totalWorkingDays: 0),
+      );
+      if (selected.id.isEmpty) {
+        _show('No driver available for the selected dates');
+        return;
+      }
+      if (!_isDriverAvailable(selected, _pickupDateTime, dayCount)) {
+        _show('Selected driver is on approved leave for the chosen dates');
+        return;
+      }
+    }
+
     await ref.read(appStateProvider.notifier).createTrip({
       'pickupDateTime': _pickupDateTime.toIso8601String(),
       'customerName': _customerName.text.trim(),
       'customerMobile': _customerMobile.text.trim(),
       'pickupLocation': _pickupLocation.text.trim(),
       'placesToVisit': _places.text.trim().isEmpty ? ['Local'] : _places.text.split(',').map((e) => e.trim()).toList(),
-      'numberOfDays': int.tryParse(_days.text) ?? 1,
+      'numberOfDays': dayCount,
       'driverId': _driverId,
       'vehicleId': _vehicleId,
     });
@@ -103,6 +121,15 @@ class _TripsPageState extends ConsumerState<TripsPage> {
 
   void _show(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _isDriverAvailable(DriverModel driver, DateTime start, int numberOfDays) {
+    final normalizedStart = DateTime(start.year, start.month, start.day);
+    final endDate = normalizedStart.add(Duration(days: (numberOfDays < 1 ? 1 : numberOfDays) - 1));
+    final normalizedEnd = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+    return driver.leaves.where((l) => l.status == 'approved').every((leave) {
+      return normalizedEnd.isBefore(leave.from) || normalizedStart.isAfter(leave.to);
+    });
   }
 
   Future<void> _assignBata(String tripId, double currentAmount) async {
@@ -210,6 +237,8 @@ class _TripsPageState extends ConsumerState<TripsPage> {
     final isWide = MediaQuery.of(context).size.width > 760;
     final dateLabel = DateFormat('dd MMM yyyy • HH:mm').format(_pickupDateTime);
     final visibleTrips = state.trips;
+    final dayCount = int.tryParse(_days.text) ?? 1;
+    final availableDrivers = state.drivers.where((d) => _isDriverAvailable(d, _pickupDateTime, dayCount)).toList();
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -284,6 +313,7 @@ class _TripsPageState extends ConsumerState<TripsPage> {
                               initialValue: _driverId,
                               decoration: const InputDecoration(labelText: 'Select Driver'),
                               items: state.drivers
+                                  .where((d) => availableDrivers.any((a) => a.id == d.id))
                                   .map(
                                     (d) => DropdownMenuItem(
                                       value: d.id,
@@ -317,6 +347,7 @@ class _TripsPageState extends ConsumerState<TripsPage> {
                         initialValue: _driverId,
                         decoration: const InputDecoration(labelText: 'Select Driver'),
                         items: state.drivers
+                            .where((d) => availableDrivers.any((a) => a.id == d.id))
                             .map(
                               (d) => DropdownMenuItem(
                                 value: d.id,
@@ -396,7 +427,7 @@ class _TripsPageState extends ConsumerState<TripsPage> {
                       subtitle: Text(
                         'Contact: ${trip.customerMobile}\n'
                         'Driver: ${trip.driverName ?? '-'} | Vehicle: ${trip.vehicleNumber ?? '-'}\n'
-                        'Days: ${trip.numberOfDays} • Bata: ${trip.driverBataAssigned.toStringAsFixed(0)}',
+                        'Days: ${trip.numberOfDays} • Bata: ${trip.driverBataAssigned.toStringAsFixed(0)} • Advance: ${trip.advanceTotal.toStringAsFixed(0)}',
                       ),
                       isThreeLine: true,
                     ),

@@ -135,7 +135,11 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     final visibleBills = state.bills.where((bill) {
       final queryMatched = query.isEmpty ||
           bill.billCode.toLowerCase().contains(query) ||
-          bill.customerName.toLowerCase().contains(query);
+          bill.customerName.toLowerCase().contains(query) ||
+          bill.vehicleNumber.toLowerCase().contains(query) ||
+          (bill.tripId ?? '').toLowerCase().contains(query) ||
+          (bill.driverName ?? '').toLowerCase().contains(query) ||
+          bill.paymentStatus.toLowerCase().contains(query);
       final dateMatched = _matchesDate(bill.billDate, _filterDate);
       return queryMatched && dateMatched;
     }).toList();
@@ -221,9 +225,10 @@ class _BillingPageState extends ConsumerState<BillingPage> {
               child: ListTile(
                 title: Text('${bill.billCode} • ${bill.customerName}'),
                 subtitle: Text(
-                  'Vehicle: ${bill.vehicleNumber}\n'
-                  'Total: ${bill.totalAmount.toStringAsFixed(2)} • Paid: ${bill.paidAmount.toStringAsFixed(2)}\n'
-                  'Remaining: ${bill.remainingAmount.toStringAsFixed(2)} • ${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}',
+                  'Trip: ${bill.tripId ?? '-'} • Driver: ${bill.driverName ?? '-'}\n'
+                  'Total: ${bill.totalAmount.toStringAsFixed(2)} • Advance: ${bill.advanceReceived.toStringAsFixed(2)}\n'
+                  'Paid: ${bill.paidAmount.toStringAsFixed(2)} • Remaining: ${bill.remainingAmount.toStringAsFixed(2)}\n'
+                  '${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}',
                 ),
                 isThreeLine: true,
                 trailing: Chip(label: Text(bill.paymentStatus.toUpperCase())),

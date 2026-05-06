@@ -31,6 +31,26 @@ const updateProfileValidation = [
   body('password').optional().isLength({ min: 6 }),
 ];
 
+const applyLeaveValidation = [
+  body('from').isISO8601(),
+  body('to').isISO8601(),
+  body('reason').notEmpty(),
+];
+
+const approveLeaveValidation = [
+  body('leaveId').isMongoId(),
+  body('status').isIn(['pending', 'approved', 'rejected']),
+];
+
+const hasLeaveOverlap = (leaves, fromDate, toDate) => {
+  return (leaves || []).some((leave) => {
+    if (!leave || leave.status === 'rejected') return false;
+    const leaveStart = new Date(leave.from);
+    const leaveEnd = new Date(leave.to);
+    return fromDate <= leaveEnd && toDate >= leaveStart;
+  });
+};
+
 const register = async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -149,6 +169,7 @@ const updateUser = async (req, res) => {
     name: user.name,
     email: user.email,
     role: user.role,
+    leaves: user.leaves || [],
   });
 };
 
@@ -217,7 +238,71 @@ const updateProfile = async (req, res) => {
     email: user.email,
     role: user.role,
     token: generateToken(user._id),
+    leaves: user.leaves || [],
   });
+};
+
+const applyUserLeave = async (req, res) => {
+  const { from, to, reason } = req.body;
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || toDate < fromDate) {
+    res.status(400);
+    throw new Error('Invalid leave date range');
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'employee') {
+    res.status(400);
+    throw new Error('Leave requests are only available for employees');
+  }
+
+  if (req.user.role === 'employee' && String(req.user._id) !== String(user._id)) {
+    res.status(403);
+    throw new Error('Employees can apply leave only for their own profile');
+  }
+
+  if (hasLeaveOverlap(user.leaves, fromDate, toDate)) {
+    res.status(400);
+    throw new Error('Leave request overlaps with an existing request');
+  }
+
+  user.leaves.push({
+    from: fromDate,
+    to: toDate,
+    reason: String(reason).trim(),
+  });
+
+  await user.save();
+  res.json(user);
+};
+
+const approveUserLeave = async (req, res) => {
+  const { leaveId, status } = req.body;
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const leave = user.leaves.id(leaveId);
+  if (!leave) {
+    res.status(404);
+    throw new Error('Leave request not found');
+  }
+
+  leave.status = status;
+  leave.approvedBy = req.user._id;
+  await user.save();
+
+  res.json(user);
 };
 
 module.exports = {
@@ -226,6 +311,8 @@ module.exports = {
   updateUserValidation,
   loginValidation,
   updateProfileValidation,
+  applyLeaveValidation,
+  approveLeaveValidation,
   register,
   login,
   createUser,
@@ -234,4 +321,6 @@ module.exports = {
   deleteUser,
   getProfile,
   updateProfile,
+  applyUserLeave,
+  approveUserLeave,
 };

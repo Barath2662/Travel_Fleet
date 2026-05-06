@@ -9,6 +9,8 @@ class TripModel {
   final String? driverName;
   final String? vehicleNumber;
   final double driverBataAssigned;
+  final double advanceTotal;
+  final TripLocation? currentLocation;
 
   const TripModel({
     required this.id,
@@ -21,11 +23,18 @@ class TripModel {
     this.driverName,
     this.vehicleNumber,
     this.driverBataAssigned = 0,
+    this.advanceTotal = 0,
+    this.currentLocation,
   });
 
   factory TripModel.fromJson(Map<String, dynamic> json) {
     final driverRaw = json['driverId'];
     final vehicleRaw = json['vehicleId'];
+
+    final currentLocationRaw = json['currentLocation'];
+    final currentLocation = currentLocationRaw is Map<String, dynamic>
+      ? TripLocation.fromJson(currentLocationRaw)
+      : null;
 
     return TripModel(
       id: json['_id'] as String,
@@ -45,6 +54,28 @@ class TripModel {
           ? (vehicleRaw['number'] as String?)
           : null,
       driverBataAssigned: (json['driverBataAssigned'] as num?)?.toDouble() ?? 0,
+      advanceTotal: (json['advanceTotal'] as num?)?.toDouble() ?? 0,
+      currentLocation: currentLocation,
+    );
+  }
+}
+
+class TripLocation {
+  final double latitude;
+  final double longitude;
+  final DateTime? capturedAt;
+
+  const TripLocation({
+    required this.latitude,
+    required this.longitude,
+    this.capturedAt,
+  });
+
+  factory TripLocation.fromJson(Map<String, dynamic> json) {
+    return TripLocation(
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      capturedAt: json['capturedAt'] != null ? DateTime.tryParse(json['capturedAt'].toString()) : null,
     );
   }
 }

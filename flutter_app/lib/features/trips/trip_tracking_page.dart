@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location/location.dart' as loc;
 import '../../models/trip.dart';
 import '../../providers/app_state_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../core/services/trip_tracking_service.dart';
+import '../../core/helpers/platform_helper.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -29,7 +36,11 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   late TextEditingController _permitController;
   late TextEditingController _parkingController;
   late TextEditingController _fastagController;
-  Position? _currentPosition;
+  loc.LocationData? _currentPosition;
+  LatLng? _liveLocation;
+  final List<LatLng> _routePoints = [];
+  StreamSubscription<loc.LocationData>? _trackingSubscription;
+  final loc.Location _location = loc.Location();
   bool _isLoadingLocation = false;
   bool _isSubmitting = false;
   bool _tollApplicable = false;
@@ -49,6 +60,27 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     _permitController = TextEditingController(text: '0');
     _parkingController = TextEditingController(text: '0');
     _fastagController = TextEditingController(text: '0');
+
+    if (isMobilePlatform && widget.trip.status == 'in_progress') {
+      final token = ref.read(authProvider).token ?? '';
+      TripTrackingService().startTracking(
+        tripId: widget.tripId,
+        api: ref.read(apiServiceProvider),
+        token: token,
+      );
+    }
+
+    if (isMobilePlatform) {
+      _trackingSubscription = TripTrackingService().locationStream.listen((locationData) {
+        final lat = locationData.latitude;
+        final lon = locationData.longitude;
+        if (lat == null || lon == null) return;
+        setState(() {
+          _liveLocation = LatLng(lat, lon);
+          _routePoints.add(_liveLocation!);
+        });
+      });
+    }
   }
 
   @override
@@ -60,6 +92,7 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     _permitController.dispose();
     _parkingController.dispose();
     _fastagController.dispose();
+    _trackingSubscription?.cancel();
     super.dispose();
   }
 
@@ -74,39 +107,54 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   }
 
   Future<void> _getCurrentLocation() async {
+    if (!isMobilePlatform) {
+      _show('GPS tracking available only on mobile devices');
+      return;
+    }
+
     setState(() => _isLoadingLocation = true);
     try {
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        final result = await Geolocator.requestPermission();
-        if (result == LocationPermission.denied) {
-          _show('Location permission denied');
+      final serviceEnabled = await _location.serviceEnabled();
+      if (!serviceEnabled) {
+        final enabled = await _location.requestService();
+        if (!enabled) {
+          _show('Location services are disabled');
           return;
         }
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        _show('Location permission permanently denied');
+      var permission = await _location.hasPermission();
+      if (permission == loc.PermissionStatus.denied) {
+        permission = await _location.requestPermission();
+      }
+
+      if (permission != loc.PermissionStatus.granted &&
+          permission != loc.PermissionStatus.grantedLimited) {
+        _show('Location permission denied');
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
+      final position = await _location.getLocation();
 
       setState(() {
         _currentPosition = position;
       });
 
+      final lat = position.latitude;
+      final lon = position.longitude;
+      if (lat == null || lon == null) {
+        _show('Unable to capture location');
+        return;
+      }
+
       await ref.read(appStateProvider.notifier).addRoutePoint(
             widget.tripId,
-            latitude: position.latitude,
-            longitude: position.longitude,
+            latitude: lat,
+            longitude: lon,
           );
 
       _show(
-        'Location captured\nLat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}',
+        'Location captured\nLat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}',
       );
     } catch (e) {
       _show('Error getting location: $e');
@@ -293,12 +341,12 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Lat: ${_currentPosition!.latitude.toStringAsFixed(4)}, Lon: ${_currentPosition!.longitude.toStringAsFixed(4)}',
+                              'Lat: ${(_currentPosition?.latitude ?? 0).toStringAsFixed(4)}, Lon: ${(_currentPosition?.longitude ?? 0).toStringAsFixed(4)}',
                               style: theme.textTheme.labelSmall,
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Accuracy: ${_currentPosition!.accuracy.toStringAsFixed(1)}m',
+                              'Accuracy: ${(_currentPosition?.accuracy ?? 0).toStringAsFixed(1)}m',
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -311,6 +359,54 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                 ),
               ),
             const SizedBox(height: 16),
+
+            if (_liveLocation != null && !kIsWeb && isMobilePlatform)
+              Card(
+                elevation: 2,
+                child: SizedBox(
+                  height: 220,
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _liveLocation!,
+                      zoom: 14,
+                    ),
+                    myLocationEnabled: true,
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('live'),
+                        position: _liveLocation!,
+                        infoWindow: const InfoWindow(title: 'Driver Location'),
+                      ),
+                    },
+                    polylines: _routePoints.length >= 2
+                        ? {
+                            Polyline(
+                              polylineId: const PolylineId('route'),
+                              color: theme.colorScheme.primary,
+                              width: 4,
+                              points: List<LatLng>.from(_routePoints),
+                            ),
+                          }
+                        : {},
+                  ),
+                ),
+              ),
+            if (_liveLocation != null && !kIsWeb && isMobilePlatform) const SizedBox(height: 16),
+            if (_liveLocation != null && (!isMobilePlatform || kIsWeb))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Live location: ${_liveLocation!.latitude.toStringAsFixed(4)}, ${_liveLocation!.longitude.toStringAsFixed(4)}',
+                ),
+              ),
+            if (!isMobilePlatform)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'GPS tracking available only on mobile devices.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
 
             // Start Trip Section
             if (isTripsScheduled) ...[

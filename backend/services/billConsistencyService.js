@@ -1,11 +1,39 @@
-const Bill = require('../models/Bill');
 const Payment = require('../models/Payment');
+const BillSequence = require('../models/BillSequence');
 
-const buildBillCodeFromId = (id) => `BILL-${String(id).toUpperCase()}`;
+const formatBillCode = (year, sequence) => {
+  const yy = String(Number(year) % 100).padStart(2, '0');
+  const seq = String(Number(sequence)).padStart(3, '0');
+  return `samp-${yy}${seq}`;
+};
 
 const isInvalidBillCode = (billCode) => {
   const value = String(billCode || '').trim();
-  return !value || value === 'BILL-NA';
+  return !/^samp-\d{5}$/i.test(value);
+};
+
+const ensureBillSequence = async ({ bill, session }) => {
+  if (!bill) return null;
+  if (Number(bill.billYear) && Number(bill.billSequence)) {
+    return { billYear: Number(bill.billYear), billSequence: Number(bill.billSequence) };
+  }
+
+  const billDate = bill.billDate ? new Date(bill.billDate) : new Date();
+  const year = billDate.getFullYear();
+  const query = BillSequence.findOneAndUpdate(
+    { year },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  if (session) {
+    query.session(session);
+  }
+
+  const sequenceDoc = await query;
+  bill.billYear = year;
+  bill.billSequence = sequenceDoc.seq;
+  return { billYear: year, billSequence: sequenceDoc.seq };
 };
 
 const toMoney = (value) => {
@@ -19,7 +47,7 @@ const computePaymentState = ({ payableAmount, paidAmount }) => {
   const remaining = Math.max(payable - paid, 0);
 
   let status = 'pending';
-  if (paid >= payable && payable > 0) {
+  if (payable <= 0 || paid >= payable) {
     status = 'paid';
   } else if (paid > 0) {
     status = 'partial';
@@ -60,8 +88,9 @@ const syncBillFromPayments = async ({ bill, payments, session }) => {
     paidAmount: totalPaid,
   });
 
+  const { billYear, billSequence } = await ensureBillSequence({ bill: billDoc, session: safeSession }) || {};
   const nextBillCode = isInvalidBillCode(billDoc.billCode)
-    ? buildBillCodeFromId(billDoc._id)
+    ? formatBillCode(billYear || new Date().getFullYear(), billSequence || 1)
     : String(billDoc.billCode).trim();
 
   const hasChanged =
@@ -82,7 +111,8 @@ const syncBillFromPayments = async ({ bill, payments, session }) => {
 };
 
 module.exports = {
-  buildBillCodeFromId,
+  formatBillCode,
+  ensureBillSequence,
   computePaymentState,
   syncBillFromPayments,
 };

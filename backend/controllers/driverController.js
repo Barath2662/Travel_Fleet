@@ -15,6 +15,15 @@ const approveLeaveValidation = [
   body('status').isIn(['pending', 'approved', 'rejected']),
 ];
 
+const hasLeaveOverlap = (leaves, fromDate, toDate) => {
+  return (leaves || []).some((leave) => {
+    if (!leave || leave.status === 'rejected') return false;
+    const leaveStart = new Date(leave.from);
+    const leaveEnd = new Date(leave.to);
+    return fromDate <= leaveEnd && toDate >= leaveStart;
+  });
+};
+
 const createDriver = async (req, res) => {
   const payload = { ...req.body };
   let user = null;
@@ -138,6 +147,11 @@ const applyLeave = async (req, res) => {
   if (req.user.role === 'driver' && String(driver.userId) !== String(req.user._id)) {
     res.status(403);
     throw new Error('Drivers can apply leave only for their own profile');
+  }
+
+  if (hasLeaveOverlap(driver.leaves, fromDate, toDate)) {
+    res.status(400);
+    throw new Error('Leave request overlaps with an existing request');
   }
 
   driver.leaves.push({ from: fromDate, to: toDate, reason: String(reason).trim() });

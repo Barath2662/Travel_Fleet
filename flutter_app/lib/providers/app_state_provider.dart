@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/config/app_config.dart';
+import '../core/services/trip_tracking_service.dart';
 import '../models/app_notification.dart';
 import '../models/bill.dart';
 import '../models/driver.dart';
@@ -22,6 +23,7 @@ class AppState {
   final List<PaymentModel> payments;
   final List<AppNotification> notifications;
   final List<AppUser> users;
+  final AppUser? currentUser;
 
   const AppState({
     this.loading = false,
@@ -34,6 +36,7 @@ class AppState {
     this.payments = const [],
     this.notifications = const [],
     this.users = const [],
+    this.currentUser,
   });
 
   AppState copyWith({
@@ -48,6 +51,7 @@ class AppState {
     List<PaymentModel>? payments,
     List<AppNotification>? notifications,
     List<AppUser>? users,
+    AppUser? currentUser,
   }) {
     return AppState(
       loading: loading ?? this.loading,
@@ -60,6 +64,7 @@ class AppState {
       payments: payments ?? this.payments,
       notifications: notifications ?? this.notifications,
       users: users ?? this.users,
+      currentUser: currentUser ?? this.currentUser,
     );
   }
 }
@@ -141,6 +146,17 @@ class AppStateNotifier extends StateNotifier<AppState> {
     });
   }
 
+  Future<void> fetchProfile() async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      final api = ref.read(apiServiceProvider);
+      final data = await api.get('/auth/profile', token: token) as Map<String, dynamic>;
+      state = state.copyWith(loading: false, currentUser: AppUser.fromJson(data));
+    } catch (error) {
+      state = state.copyWith(loading: false, error: _toMessage(error));
+    }
+  }
+
   Future<void> createTrip(Map<String, dynamic> payload) async {
     await _post('/trip', payload);
     await fetchTrips();
@@ -149,11 +165,23 @@ class AppStateNotifier extends StateNotifier<AppState> {
   Future<void> startTrip(String id, int startKm) async {
     await _put('/trip/$id/start', {'startKm': startKm});
     await fetchTrips();
+
+    if (ref.read(authProvider).role == 'driver') {
+      await TripTrackingService().startTracking(
+        tripId: id,
+        api: ref.read(apiServiceProvider),
+        token: token,
+      );
+    }
   }
 
   Future<void> endTrip(String id, Map<String, dynamic> payload) async {
     await _put('/trip/$id/end', payload);
     await fetchTrips();
+
+    if (ref.read(authProvider).role == 'driver') {
+      await TripTrackingService().stopTracking();
+    }
   }
 
   Future<void> addAdvance(String id, double amount) async {
@@ -261,9 +289,26 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await fetchDrivers();
   }
 
+  Future<void> applyEmployeeLeave(String id, {required DateTime from, required DateTime to, required String reason}) async {
+    await _post('/auth/users/$id/leave', {
+      'from': from.toIso8601String(),
+      'to': to.toIso8601String(),
+      'reason': reason,
+    });
+    await fetchProfile();
+    if (ref.read(authProvider).role == 'owner') {
+      await fetchUsers();
+    }
+  }
+
   Future<void> approveDriverLeave(String id, {required String leaveId, required String status}) async {
     await _put('/driver/$id/leave/approve', {'leaveId': leaveId, 'status': status});
     await fetchDrivers();
+  }
+
+  Future<void> approveEmployeeLeave(String id, {required String leaveId, required String status}) async {
+    await _put('/auth/users/$id/leave/approve', {'leaveId': leaveId, 'status': status});
+    await fetchUsers();
   }
 
   Future<Map<String, dynamic>> fetchDriverPayroll(String id) async {

@@ -4,6 +4,8 @@ const billSchema = new mongoose.Schema(
   {
     tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip' },
     billCode: { type: String, unique: true, required: true, trim: true },
+    billYear: { type: Number },
+    billSequence: { type: Number },
     customerName: { type: String, default: 'N/A', trim: true },
     billDate: { type: Date, default: Date.now },
     tripDate: { type: Date, default: Date.now },
