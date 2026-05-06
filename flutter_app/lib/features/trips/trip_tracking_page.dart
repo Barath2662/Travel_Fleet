@@ -35,7 +35,6 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   late TextEditingController _tollController;
   late TextEditingController _permitController;
   late TextEditingController _parkingController;
-  late TextEditingController _fastagController;
   loc.LocationData? _currentPosition;
   LatLng? _liveLocation;
   final List<LatLng> _routePoints = [];
@@ -59,7 +58,6 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     _tollController = TextEditingController(text: '0');
     _permitController = TextEditingController(text: '0');
     _parkingController = TextEditingController(text: '0');
-    _fastagController = TextEditingController(text: '0');
 
     if (isMobilePlatform && widget.trip.status == 'in_progress') {
       final token = ref.read(authProvider).token ?? '';
@@ -91,7 +89,6 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     _tollController.dispose();
     _permitController.dispose();
     _parkingController.dispose();
-    _fastagController.dispose();
     _trackingSubscription?.cancel();
     super.dispose();
   }
@@ -201,6 +198,7 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   }
 
   Future<void> _endTrip() async {
+    final role = ref.read(authProvider).role;
     if (_endKmController.text.trim().isEmpty) {
       _show('Please enter ending KM');
       return;
@@ -214,16 +212,20 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
 
     setState(() => _isSubmitting = true);
     try {
+      final isDriver = role == 'driver';
+      final tollApplicable = isDriver ? false : _tollApplicable;
+      final permitApplicable = isDriver ? false : _permitApplicable;
+      final parkingApplicable = isDriver ? false : _parkingApplicable;
       await ref.read(appStateProvider.notifier).endTrip(widget.tripId, {
         'endKm': endKm,
-        'tollApplicable': _tollApplicable,
-        'permitApplicable': _permitApplicable,
-        'parkingApplicable': _parkingApplicable,
+        'tollApplicable': tollApplicable,
+        'permitApplicable': permitApplicable,
+        'parkingApplicable': parkingApplicable,
         'fastagApplicable': _fastagApplicable,
-        'tollAmount': _tollApplicable ? (double.tryParse(_tollController.text.trim()) ?? 0) : 0,
-        'permitAmount': _permitApplicable ? (double.tryParse(_permitController.text.trim()) ?? 0) : 0,
-        'parkingAmount': _parkingApplicable ? (double.tryParse(_parkingController.text.trim()) ?? 0) : 0,
-        'fastagAmount': _fastagApplicable ? (double.tryParse(_fastagController.text.trim()) ?? 0) : 0,
+        'tollAmount': tollApplicable ? (double.tryParse(_tollController.text.trim()) ?? 0) : 0,
+        'permitAmount': permitApplicable ? (double.tryParse(_permitController.text.trim()) ?? 0) : 0,
+        'parkingAmount': parkingApplicable ? (double.tryParse(_parkingController.text.trim()) ?? 0) : 0,
+        'fastagAmount': 0,
         'tripNotes': _notesController.text.trim(),
       });
       _show('Trip ended successfully');
@@ -238,6 +240,8 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final role = ref.watch(authProvider).role;
+    final showExpenseFields = role != 'driver';
     final isTripsActive = widget.trip.status == 'in_progress';
     final isTripsScheduled = widget.trip.status == 'scheduled';
     final now = DateTime.now();
@@ -639,54 +643,50 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _tollApplicable,
-                        onChanged: (value) => setState(() => _tollApplicable = value),
-                        title: const Text('Toll Applicable'),
-                      ),
-                      if (_tollApplicable)
-                        TextField(
-                          controller: _tollController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'Toll Amount'),
+                      if (showExpenseFields) ...[
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _tollApplicable,
+                          onChanged: (value) => setState(() => _tollApplicable = value),
+                          title: const Text('Toll Applicable'),
                         ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _permitApplicable,
-                        onChanged: (value) => setState(() => _permitApplicable = value),
-                        title: const Text('Permit Applicable'),
-                      ),
-                      if (_permitApplicable)
-                        TextField(
-                          controller: _permitController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'Permit Amount'),
+                        if (_tollApplicable)
+                          TextField(
+                            controller: _tollController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(labelText: 'Toll Amount'),
+                          ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _permitApplicable,
+                          onChanged: (value) => setState(() => _permitApplicable = value),
+                          title: const Text('Permit Applicable'),
                         ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _parkingApplicable,
-                        onChanged: (value) => setState(() => _parkingApplicable = value),
-                        title: const Text('Parking Applicable'),
-                      ),
-                      if (_parkingApplicable)
-                        TextField(
-                          controller: _parkingController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'Parking Amount'),
+                        if (_permitApplicable)
+                          TextField(
+                            controller: _permitController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(labelText: 'Permit Amount'),
+                          ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _parkingApplicable,
+                          onChanged: (value) => setState(() => _parkingApplicable = value),
+                          title: const Text('Parking Applicable'),
                         ),
+                        if (_parkingApplicable)
+                          TextField(
+                            controller: _parkingController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(labelText: 'Parking Amount'),
+                          ),
+                      ],
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: _fastagApplicable,
                         onChanged: (value) => setState(() => _fastagApplicable = value),
                         title: const Text('FASTag Applicable'),
                       ),
-                      if (_fastagApplicable)
-                        TextField(
-                          controller: _fastagController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'FASTag Amount'),
-                        ),
                       const SizedBox(height: 12),
                       // Location Button
                       SizedBox(

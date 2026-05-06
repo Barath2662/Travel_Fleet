@@ -6,9 +6,19 @@ class BillModel {
   final String vehicleNumber;
   final String? tripId;
   final String? driverName;
+  final String? pickupLocation;
+  final String? dropLocation;
+  final String? tripStatus;
+  final double baseFare;
   final double totalAmount;
+  final double gstPercent;
+  final double gstAmount;
+  final double finalAmount;
   final double payableAmount;
   final double advanceReceived;
+  final double waitingCharges;
+  final double extraCharges;
+  final double fastagCharges;
   final double paidAmount;
   final double remainingAmount;
   final String paymentStatus;
@@ -21,9 +31,19 @@ class BillModel {
     required this.vehicleNumber,
     this.tripId,
     this.driverName,
+    this.pickupLocation,
+    this.dropLocation,
+    this.tripStatus,
+    this.baseFare = 0,
     required this.totalAmount,
+    this.gstPercent = 0,
+    this.gstAmount = 0,
+    this.finalAmount = 0,
     required this.payableAmount,
     required this.advanceReceived,
+    this.waitingCharges = 0,
+    this.extraCharges = 0,
+    this.fastagCharges = 0,
     required this.paidAmount,
     required this.remainingAmount,
     required this.paymentStatus,
@@ -49,9 +69,19 @@ class BillModel {
       vehicleNumber: json['vehicleNumber'] as String? ?? 'N/A',
       tripId: tripMap?['_id'] as String?,
       driverName: driverMap?['name'] as String?,
+      pickupLocation: json['pickupLocation'] as String?,
+      dropLocation: json['dropLocation'] as String?,
+      tripStatus: json['tripStatus'] as String?,
+      baseFare: (json['baseFare'] as num?)?.toDouble() ?? 0,
       totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
+      gstPercent: (json['gstPercent'] as num?)?.toDouble() ?? 0,
+      gstAmount: (json['gstAmount'] as num?)?.toDouble() ?? 0,
+      finalAmount: (json['finalAmount'] as num?)?.toDouble() ?? 0,
       payableAmount: (json['payableAmount'] as num?)?.toDouble() ?? 0,
       advanceReceived: (json['advanceReceived'] as num?)?.toDouble() ?? 0,
+      waitingCharges: (json['waitingCharges'] as num?)?.toDouble() ?? 0,
+      extraCharges: (json['extraCharges'] as num?)?.toDouble() ?? 0,
+      fastagCharges: (json['fastagCharges'] as num?)?.toDouble() ?? 0,
       paidAmount: (json['paidAmount'] as num?)?.toDouble() ?? 0,
       remainingAmount: (json['remainingAmount'] as num?)?.toDouble() ?? 0,
       paymentStatus: json['paymentStatus'] as String? ?? 'pending',

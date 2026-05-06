@@ -6,8 +6,16 @@ class TripModel {
   final List<String> placesToVisit;
   final String status;
   final int numberOfDays;
+  final DateTime? pickupDateTime;
   final String? driverName;
   final String? vehicleNumber;
+  final int? startKm;
+  final int? endKm;
+  final double tollAmount;
+  final double permitAmount;
+  final double parkingAmount;
+  final double fastagAmount;
+  final String? tripNotes;
   final double driverBataAssigned;
   final double advanceTotal;
   final TripLocation? currentLocation;
@@ -20,8 +28,16 @@ class TripModel {
     required this.placesToVisit,
     required this.status,
     required this.numberOfDays,
+    this.pickupDateTime,
     this.driverName,
     this.vehicleNumber,
+    this.startKm,
+    this.endKm,
+    this.tollAmount = 0,
+    this.permitAmount = 0,
+    this.parkingAmount = 0,
+    this.fastagAmount = 0,
+    this.tripNotes,
     this.driverBataAssigned = 0,
     this.advanceTotal = 0,
     this.currentLocation,
@@ -47,12 +63,22 @@ class TripModel {
           .toList(),
       status: json['status'] as String,
       numberOfDays: (json['numberOfDays'] as num).toInt(),
+      pickupDateTime: json['pickupDateTime'] != null
+          ? DateTime.tryParse(json['pickupDateTime'].toString())
+          : null,
       driverName: driverRaw is Map<String, dynamic>
           ? (driverRaw['name'] as String?)
           : null,
       vehicleNumber: vehicleRaw is Map<String, dynamic>
           ? (vehicleRaw['number'] as String?)
           : null,
+      startKm: (json['startKm'] as num?)?.toInt(),
+      endKm: (json['endKm'] as num?)?.toInt(),
+      tollAmount: (json['tollAmount'] as num?)?.toDouble() ?? 0,
+      permitAmount: (json['permitAmount'] as num?)?.toDouble() ?? 0,
+      parkingAmount: (json['parkingAmount'] as num?)?.toDouble() ?? 0,
+      fastagAmount: (json['fastagAmount'] as num?)?.toDouble() ?? 0,
+      tripNotes: json['tripNotes'] as String?,
       driverBataAssigned: (json['driverBataAssigned'] as num?)?.toDouble() ?? 0,
       advanceTotal: (json['advanceTotal'] as num?)?.toDouble() ?? 0,
       currentLocation: currentLocation,

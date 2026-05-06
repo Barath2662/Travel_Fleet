@@ -140,6 +140,21 @@ class AppStateNotifier extends StateNotifier<AppState> {
     });
   }
 
+  Future<TripModel> fetchTripById(String id) async {
+    final api = ref.read(apiServiceProvider);
+    final data = await api.get('/trips/$id', token: token) as Map<String, dynamic>;
+    return TripModel.fromJson(data);
+  }
+
+  Future<BillModel?> checkBillByTripId(String tripId) async {
+    final api = ref.read(apiServiceProvider);
+    final data = await api.get('/bills/check/$tripId', token: token) as Map<String, dynamic>;
+    if (data['exists'] == true && data['bill'] is Map<String, dynamic>) {
+      return BillModel.fromJson(data['bill'] as Map<String, dynamic>);
+    }
+    return null;
+  }
+
   Future<void> fetchUsers() async {
     await _fetchList('/auth/users', onData: (items) {
       state = state.copyWith(users: items.map((e) => AppUser.fromJson(e)).toList());
@@ -198,9 +213,19 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await fetchTrips();
   }
 
-  Future<void> createBill(Map<String, dynamic> payload) async {
-    await _post('/bill', payload);
-    await fetchBills();
+  Future<BillModel> createBill(Map<String, dynamic> payload) async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      final api = ref.read(apiServiceProvider);
+      final response = await api.post('/bill', payload, token: token);
+      final bill = BillModel.fromJson(response as Map<String, dynamic>);
+      await fetchBills();
+      state = state.copyWith(loading: false);
+      return bill;
+    } catch (error) {
+      state = state.copyWith(loading: false, error: _toMessage(error));
+      rethrow;
+    }
   }
 
   Future<void> createVehicle(Map<String, dynamic> payload) async {
@@ -329,6 +354,23 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await fetchNotifications();
   }
 
+  Future<void> updateNotification(String id, Map<String, dynamic> payload) async {
+    await _patch('/notifications/$id', payload);
+    await fetchNotifications();
+  }
+
+  Future<void> requestFastag(String tripId) async {
+    await _post('/fastag/request', {'tripId': tripId, 'applicable': true});
+    await fetchNotifications();
+  }
+
+  Future<void> setFastagAmount({required String requestId, required double amount}) async {
+    await _patch('/fastag/amount', {'requestId': requestId, 'amount': amount});
+    await fetchNotifications();
+    await fetchTrips();
+    await fetchBills();
+  }
+
   Future<void> _fetchList(String path, {required void Function(List<Map<String, dynamic>>) onData}) async {
     state = state.copyWith(loading: true, clearError: true);
     try {
@@ -357,6 +399,17 @@ class AppStateNotifier extends StateNotifier<AppState> {
     state = state.copyWith(loading: true, clearError: true);
     try {
       await ref.read(apiServiceProvider).put(path, body, token: token);
+      state = state.copyWith(loading: false);
+    } catch (error) {
+      state = state.copyWith(loading: false, error: _toMessage(error));
+      rethrow;
+    }
+  }
+
+  Future<void> _patch(String path, Map<String, dynamic> body) async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      await ref.read(apiServiceProvider).patch(path, body, token: token);
       state = state.copyWith(loading: false);
     } catch (error) {
       state = state.copyWith(loading: false, error: _toMessage(error));

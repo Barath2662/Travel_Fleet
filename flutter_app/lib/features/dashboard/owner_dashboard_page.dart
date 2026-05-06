@@ -107,6 +107,14 @@ class _OwnerDashboardPageState extends ConsumerState<OwnerDashboardPage> {
           ),
         ),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            tooltip: 'Notifications',
+            onPressed: () => ref.read(dashboardNavIndexProvider.notifier).state = 7,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       drawer: isWide
           ? null

@@ -1,6 +1,7 @@
 const { body } = require('express-validator');
 const Vehicle = require('../models/Vehicle');
 const VehicleBataRate = require('../models/VehicleBataRate');
+const { completeNotificationsByFilter } = require('../services/notificationService');
 
 const vehicleValidation = [
   body('number').notEmpty(),
@@ -32,8 +33,32 @@ const updateVehicle = async (req, res) => {
     throw new Error('Vehicle not found');
   }
 
+  const previous = {
+    fcDate: vehicle.fcDate,
+    insuranceDate: vehicle.insuranceDate,
+    pucDate: vehicle.pucDate,
+    permitDate: vehicle.permitDate,
+  };
+
   Object.assign(vehicle, req.body);
   await vehicle.save();
+
+  const updatedFields = ['fcDate', 'insuranceDate', 'pucDate', 'permitDate'];
+  for (const field of updatedFields) {
+    if (req.body[field] !== undefined && String(req.body[field]) !== String(previous[field])) {
+      const typeMap = {
+        fcDate: 'vehicle_fc',
+        insuranceDate: 'vehicle_insurance',
+        permitDate: 'vehicle_permit',
+        pucDate: 'vehicle_puc',
+      };
+      await completeNotificationsByFilter({
+        type: typeMap[field],
+        relatedEntityId: vehicle._id,
+      });
+    }
+  }
+
   res.json(vehicle);
 };
 

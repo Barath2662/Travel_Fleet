@@ -35,6 +35,16 @@ class ApiService {
     );
   }
 
+  Future<dynamic> patch(String path, Map<String, dynamic> body,
+      {String? token}) async {
+    return _request(
+      () => http.patch(_uri(path),
+          headers: _headers(token), body: jsonEncode(body)),
+      method: 'PATCH',
+      path: path,
+    );
+  }
+
   Future<dynamic> delete(String path, {String? token}) async {
     return _request(
       () => http.delete(_uri(path), headers: _headers(token)),

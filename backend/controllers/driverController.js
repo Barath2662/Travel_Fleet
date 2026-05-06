@@ -1,6 +1,7 @@
 const { body } = require('express-validator');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
+const { getOwnerUser, findOrCreatePendingNotification, completeNotificationByEntity } = require('../services/notificationService');
 
 const driverValidation = [
   body('name').notEmpty(),
@@ -156,6 +157,29 @@ const applyLeave = async (req, res) => {
 
   driver.leaves.push({ from: fromDate, to: toDate, reason: String(reason).trim() });
   await driver.save();
+
+  const owner = await getOwnerUser();
+  if (owner) {
+    const latestLeave = driver.leaves[driver.leaves.length - 1];
+    if (latestLeave) {
+      await findOrCreatePendingNotification({
+        userId: owner._id,
+        assignedTo: owner._id,
+        type: 'leave_request_driver',
+        relatedEntityId: latestLeave._id,
+        title: 'Leave request pending approval',
+        message: `Driver ${driver.name} requested leave from ${fromDate.toDateString()} to ${toDate.toDateString()}.`,
+        meta: {
+          driverId: driver._id,
+          leaveId: latestLeave._id,
+          from: fromDate,
+          to: toDate,
+          reason: String(reason).trim(),
+        },
+        actionRequired: true,
+      });
+    }
+  }
   res.json(driver);
 };
 
@@ -177,6 +201,11 @@ const approveLeave = async (req, res) => {
   leave.status = status;
   leave.approvedBy = req.user._id;
   await driver.save();
+
+  await completeNotificationByEntity({
+    type: 'leave_request_driver',
+    relatedEntityId: leave._id,
+  });
 
   res.json(driver);
 };

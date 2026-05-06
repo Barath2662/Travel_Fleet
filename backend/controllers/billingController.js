@@ -7,6 +7,7 @@ const Trip = require('../models/Trip');
 const Payment = require('../models/Payment');
 const { generateInvoicePdf } = require('../services/pdfService');
 const { formatBillCode, syncBillFromPayments } = require('../services/billConsistencyService');
+const { computeBillFields, toNumber } = require('../services/billingService');
 
 const billValidation = [
   body('tripId').optional({ checkFalsy: true }).isMongoId(),
@@ -19,37 +20,17 @@ const billValidation = [
   body('hourRent').optional({ checkFalsy: true }).isNumeric(),
   body('numberOfDays').optional({ checkFalsy: true }).isNumeric(),
   body('numberOfHours').optional({ checkFalsy: true }).isNumeric(),
+  body('baseFare').optional({ checkFalsy: true }).isNumeric(),
   body('driverBata').optional({ checkFalsy: true }).isNumeric(),
   body('tollCharges').optional({ checkFalsy: true }).isNumeric(),
   body('fastagCharges').optional({ checkFalsy: true }).isNumeric(),
   body('permitCharges').optional({ checkFalsy: true }).isNumeric(),
+  body('waitingCharges').optional({ checkFalsy: true }).isNumeric(),
+  body('extraCharges').optional({ checkFalsy: true }).isNumeric(),
   body('parkingCharges').optional({ checkFalsy: true }).isNumeric(),
   body('advanceReceived').optional({ checkFalsy: true }).isNumeric(),
+  body('gstPercent').optional({ checkFalsy: true }).isNumeric(),
 ];
-
-const toNumber = (value, fallback = 0) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const computeBillFields = (payload) => {
-  const totalKm = Math.max(toNumber(payload.endKm) - toNumber(payload.startKm), 0);
-  const kmCharge = totalKm * toNumber(payload.ratePerKm);
-
-  const totalAmount =
-    kmCharge +
-    toNumber(payload.dayRent) +
-    toNumber(payload.hourRent) +
-    toNumber(payload.driverBata) +
-    toNumber(payload.tollCharges) +
-    toNumber(payload.fastagCharges) +
-    toNumber(payload.permitCharges) +
-    toNumber(payload.parkingCharges);
-
-  const payableAmount = totalAmount - toNumber(payload.advanceReceived);
-
-  return { totalKm, kmCharge, totalAmount, payableAmount: Math.max(payableAmount, 0) };
-};
 
 const sumTripAdvances = (trip) => {
   if (!trip || !Array.isArray(trip.advances)) return 0;
@@ -61,7 +42,9 @@ const createBill = async (req, res) => {
   const billId = new mongoose.Types.ObjectId();
 
   const trip = payload.tripId
-    ? await Trip.findById(payload.tripId).populate('vehicleId', 'number')
+    ? await Trip.findById(payload.tripId)
+        .populate('vehicleId', 'number')
+        .populate('driverId', 'name')
     : null;
 
   if (payload.tripId && !trip) {
@@ -69,9 +52,14 @@ const createBill = async (req, res) => {
     throw new Error('Trip not found');
   }
 
-  if (trip && trip.status !== 'completed') {
+  if (trip && !['completed', 'approved'].includes(trip.status)) {
     res.status(400);
-    throw new Error('Bill can only be generated for completed trips');
+    throw new Error('Bill can only be generated for completed or approved trips');
+  }
+
+  if (trip && (await Bill.findOne({ tripId: trip._id }))) {
+    res.status(409);
+    throw new Error('Invoice already exists for this trip');
   }
 
   const billDateForSequence = payload.billDate ? new Date(payload.billDate) : new Date();
@@ -87,6 +75,13 @@ const createBill = async (req, res) => {
     ? Math.max(toNumber(payload.advanceReceived), 0)
     : Math.max(tripAdvanceTotal, 0);
 
+  const baseFare = payload.baseFare !== undefined
+    ? Math.max(toNumber(payload.baseFare), 0)
+    : Math.max(toNumber(payload.dayRent), 0) + Math.max(toNumber(payload.hourRent), 0);
+  const extraCharges = payload.extraCharges !== undefined
+    ? Math.max(toNumber(payload.extraCharges), 0)
+    : Math.max(toNumber(payload.parkingCharges), 0);
+
   const sanitizedPayload = {
     _id: billId,
     ...(payload.tripId ? { tripId: payload.tripId } : {}),
@@ -97,7 +92,13 @@ const createBill = async (req, res) => {
     billDate: payload.billDate || new Date(),
     tripDate: payload.tripDate || payload.billDate || trip?.pickupDateTime || new Date(),
     vehicleNumber: payload.vehicleNumber || trip?.vehicleId?.number || 'N/A',
+    driverName: payload.driverName || trip?.driverId?.name,
     tripDetails: payload.tripDetails || 'Business trip',
+    pickupLocation: payload.pickupLocation || trip?.pickupLocation,
+    dropLocation: payload.dropLocation || (Array.isArray(trip?.placesToVisit) && trip.placesToVisit.length
+      ? trip.placesToVisit[trip.placesToVisit.length - 1]
+      : undefined),
+    tripStatus: payload.tripStatus || trip?.status,
     startTime: payload.startTime || trip?.startTime,
     endTime: payload.endTime || trip?.endTime,
     startKm: Math.max(toNumber(payload.startKm, toNumber(trip?.startKm, 0)), 0),
@@ -105,14 +106,18 @@ const createBill = async (req, res) => {
     ratePerKm: Math.max(toNumber(payload.ratePerKm), 0),
     dayRent: Math.max(toNumber(payload.dayRent), 0),
     hourRent: Math.max(toNumber(payload.hourRent), 0),
+    baseFare,
     numberOfDays: Math.max(toNumber(payload.numberOfDays), 0),
     numberOfHours: Math.max(toNumber(payload.numberOfHours), 0),
     driverBata: Math.max(toNumber(payload.driverBata, toNumber(trip?.driverBataAssigned)), 0),
     tollCharges: Math.max(toNumber(payload.tollCharges, toNumber(trip?.tollAmount)), 0),
     fastagCharges: Math.max(toNumber(payload.fastagCharges, toNumber(trip?.fastagAmount)), 0),
     permitCharges: Math.max(toNumber(payload.permitCharges, toNumber(trip?.permitAmount)), 0),
+    waitingCharges: Math.max(toNumber(payload.waitingCharges), 0),
+    extraCharges,
     parkingCharges: Math.max(toNumber(payload.parkingCharges, toNumber(trip?.parkingAmount)), 0),
     advanceReceived,
+    gstPercent: Math.max(toNumber(payload.gstPercent), 0),
   };
 
   if (sanitizedPayload.endKm < sanitizedPayload.startKm) {
@@ -124,7 +129,13 @@ const createBill = async (req, res) => {
 
   const bill = await Bill.create({
     ...sanitizedPayload,
-    ...totals,
+    distance: totals.distance,
+    totalKm: totals.totalKm,
+    kmCharge: totals.kmCharge,
+    totalAmount: totals.totalAmount,
+    gstAmount: totals.gstAmount,
+    finalAmount: totals.finalAmount,
+    payableAmount: totals.payableAmount,
     paidAmount: 0,
     remainingAmount: totals.payableAmount,
     paymentStatus: totals.payableAmount > 0 ? 'pending' : 'paid',
@@ -215,6 +226,15 @@ const getBills = async (req, res) => {
   res.json(hydratedBills);
 };
 
+const checkBillByTripId = async (req, res) => {
+  const tripId = req.params.tripId;
+  const bill = await Bill.findOne({ tripId });
+  if (!bill) {
+    return res.json({ exists: false });
+  }
+  res.json({ exists: true, bill });
+};
+
 const getBillPdf = async (req, res) => {
   const bill = await Bill.findById(req.params.id);
   if (!bill || !bill.pdfPath) {
@@ -230,4 +250,5 @@ module.exports = {
   createBill,
   getBills,
   getBillPdf,
+  checkBillByTripId,
 };

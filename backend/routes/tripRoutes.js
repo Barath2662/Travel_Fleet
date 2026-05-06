@@ -4,6 +4,7 @@ const {
   tripValidation,
   createTrip,
   getTrips,
+  getTripById,
   updateTrip,
   startTripValidation,
   endTripValidation,
@@ -23,6 +24,7 @@ const tripIdParamValidation = [param('id').isMongoId()];
 
 router.post('/trip', protect, authorizeRoles('owner', 'employee'), tripValidation, validate, createTrip);
 router.get('/trips', protect, getTrips);
+router.get('/trips/:id', protect, tripIdParamValidation, validate, getTripById);
 router.put('/trip/:id', protect, authorizeRoles('owner', 'employee'), tripIdParamValidation, validate, updateTrip);
 router.put('/trip/:id/start', protect, authorizeRoles('driver', 'owner'), tripIdParamValidation, startTripValidation, validate, startTrip);
 router.put('/trip/:id/end', protect, authorizeRoles('driver', 'owner'), tripIdParamValidation, endTripValidation, validate, endTrip);

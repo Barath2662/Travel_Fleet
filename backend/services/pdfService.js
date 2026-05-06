@@ -103,14 +103,17 @@ const generateInvoicePdf = async (bill) => {
     drawRow('Rate / KM', currency(bill.ratePerKm));
     drawRow('KM Charge', currency(bill.kmCharge));
     drawRow('Charges', '', { isSection: true });
-    drawRow('Per Day', currency(bill.dayRent));
-    drawRow('Per Hour', currency(bill.hourRent));
+    drawRow('Base Fare', currency(bill.baseFare || (bill.dayRent || 0) + (bill.hourRent || 0)));
     drawRow('Driver Bata', currency(bill.driverBata));
     drawRow('Toll', currency(bill.tollCharges));
-    drawRow('Permit / Other', currency((bill.permitCharges || 0) + (bill.parkingCharges || 0)));
-    drawRow('TOTAL', currency(bill.totalAmount), { isBold: true });
+    drawRow('Permit', currency(bill.permitCharges));
+    drawRow('Waiting', currency(bill.waitingCharges));
+    drawRow('Extra Charges', currency(bill.extraCharges));
+    drawRow('FASTag', currency(bill.fastagCharges));
+    drawRow('SUBTOTAL', currency(bill.totalAmount), { isBold: true });
+    drawRow('GST', currency(bill.gstAmount || 0));
     drawRow('Advance Received', currency(bill.advanceReceived));
-    drawRow('PAYABLE', currency(bill.payableAmount), { isBold: true });
+    drawRow('PAYABLE', currency(bill.payableAmount || bill.finalAmount), { isBold: true });
 
     const footerTop = rowY + 16;
     doc.font('Helvetica').fontSize(10).text('Amount in words: Rupees only.', leftX, footerTop);

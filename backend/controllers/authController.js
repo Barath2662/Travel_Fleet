@@ -1,5 +1,6 @@
 const { body } = require('express-validator');
 const User = require('../models/User');
+const { getOwnerUser, findOrCreatePendingNotification, completeNotificationByEntity } = require('../services/notificationService');
 const { generateToken } = require('../services/tokenService');
 
 const registerValidation = [
@@ -280,6 +281,29 @@ const applyUserLeave = async (req, res) => {
   });
 
   await user.save();
+
+  const owner = await getOwnerUser();
+  if (owner) {
+    const latestLeave = user.leaves[user.leaves.length - 1];
+    if (latestLeave) {
+      await findOrCreatePendingNotification({
+        userId: owner._id,
+        assignedTo: owner._id,
+        type: 'leave_request_employee',
+        relatedEntityId: latestLeave._id,
+        title: 'Leave request pending approval',
+        message: `Employee ${user.name} requested leave from ${fromDate.toDateString()} to ${toDate.toDateString()}.`,
+        meta: {
+          userId: user._id,
+          leaveId: latestLeave._id,
+          from: fromDate,
+          to: toDate,
+          reason: String(reason).trim(),
+        },
+        actionRequired: true,
+      });
+    }
+  }
   res.json(user);
 };
 
@@ -301,6 +325,11 @@ const approveUserLeave = async (req, res) => {
   leave.status = status;
   leave.approvedBy = req.user._id;
   await user.save();
+
+  await completeNotificationByEntity({
+    type: 'leave_request_employee',
+    relatedEntityId: leave._id,
+  });
 
   res.json(user);
 };

@@ -3,8 +3,10 @@ const Trip = require('../models/Trip');
 const Vehicle = require('../models/Vehicle');
 const Driver = require('../models/Driver');
 const Bill = require('../models/Bill');
+const FastagRequest = require('../models/FastagRequest');
 const VehicleBataRate = require('../models/VehicleBataRate');
 const { syncBillFromPayments } = require('../services/billConsistencyService');
+const { getOwnerUser, findOrCreatePendingNotification } = require('../services/notificationService');
 
 const tripValidation = [
   body('pickupDateTime').isISO8601(),
@@ -189,6 +191,37 @@ const getTrips = async (req, res) => {
   });
 
   res.json(enriched);
+};
+
+const getTripById = async (req, res) => {
+  const trip = await Trip.findById(req.params.id)
+    .populate('driverId', 'name phone')
+    .populate('vehicleId', 'number')
+    .lean();
+
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+
+  const canManageTrip = await ensureDriverTripAccess(trip, req.user);
+  if (!canManageTrip) {
+    res.status(403);
+    throw new Error('You can only view your own assigned trips');
+  }
+
+  const advanceTotal = sumTripAdvances(trip);
+  const lastPoint = Array.isArray(trip.routePoints) && trip.routePoints.length > 0
+    ? trip.routePoints[trip.routePoints.length - 1]
+    : null;
+
+  res.json({
+    ...trip,
+    advanceTotal,
+    currentLocation: lastPoint
+      ? { latitude: lastPoint.latitude, longitude: lastPoint.longitude, capturedAt: lastPoint.capturedAt }
+      : null,
+  });
 };
 
 const updateTrip = async (req, res) => {
@@ -418,6 +451,37 @@ const endTrip = async (req, res) => {
     await session.endSession();
   }
 
+  if (completedTrip && completedTrip.fastagApplicable) {
+    const owner = await getOwnerUser();
+    if (owner) {
+      const existing = await FastagRequest.findOne({ tripId: completedTrip._id });
+      const request = existing || await FastagRequest.create({
+        tripId: completedTrip._id,
+        driverId: completedTrip.driverId,
+        ownerId: owner._id,
+        applicable: true,
+        amount: Math.max(toNumber(completedTrip.fastagAmount), 0),
+      });
+
+      if (!existing) {
+        await findOrCreatePendingNotification({
+          userId: owner._id,
+          assignedTo: owner._id,
+          type: 'fastag_request',
+          relatedEntityId: request._id,
+          title: 'FASTag Amount Pending',
+          message: `Driver reported FASTag usage for Trip #${completedTrip._id}. Pending amount entry.`,
+          meta: {
+            tripId: completedTrip._id,
+            driverId: completedTrip.driverId,
+            vehicleId: completedTrip.vehicleId,
+          },
+          actionRequired: true,
+        });
+      }
+    }
+  }
+
   res.json(completedTrip);
 };
 
@@ -528,6 +592,7 @@ module.exports = {
   routePointValidation,
   createTrip,
   getTrips,
+  getTripById,
   updateTrip,
   startTrip,
   endTrip,

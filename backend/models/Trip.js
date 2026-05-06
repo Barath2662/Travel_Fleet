@@ -60,7 +60,7 @@ const tripSchema = new mongoose.Schema(
     driverBataCredited: { type: Boolean, default: false },
     status: {
       type: String,
-      enum: ['scheduled', 'in_progress', 'completed'],
+      enum: ['scheduled', 'in_progress', 'completed', 'approved'],
       default: 'scheduled',
     },
     advances: [advanceSchema],

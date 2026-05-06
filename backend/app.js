@@ -14,6 +14,7 @@ const vehicleRoutes = require('./routes/vehicleRoutes');
 const driverRoutes = require('./routes/driverRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const fastagRoutes = require('./routes/fastagRoutes');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api', vehicleRoutes);
 app.use('/api', driverRoutes);
 app.use('/api', paymentRoutes);
 app.use('/api', notificationRoutes);
+app.use('/api', fastagRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
