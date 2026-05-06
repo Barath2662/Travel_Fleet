@@ -75,7 +75,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _tripIdController?.dispose();
+    _tripIdController?.removeListener(_handleTripIdInput);
     _customerName.dispose();
     _pickupLocation.dispose();
     _dropLocation.dispose();
@@ -127,6 +127,10 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   }
 
   String get _tripIdValue => _tripIdController?.text.trim() ?? '';
+
+  void _handleTripIdInput() {
+    _onTripIdChanged(_tripIdValue);
+  }
 
   void _onTripIdChanged(String value) {
     _debounce?.cancel();
@@ -381,7 +385,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                     fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                       if (_tripIdController == null) {
                         _tripIdController = controller;
-                        _tripIdController!.addListener(() => _onTripIdChanged(_tripIdValue));
+                        _tripIdController!.addListener(_handleTripIdInput);
                       }
                       return TextField(
                         controller: controller,
@@ -404,7 +408,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: null,
+                    initialValue: null,
                     hint: const Text('Recent Completed Trips'),
                     items: completedTrips.take(6).map((trip) {
                       return DropdownMenuItem(
@@ -421,7 +425,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                   const SizedBox(height: 12),
                   if (_cachedTrip != null)
                     Card(
-                      color: theme.colorScheme.surfaceVariant,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(

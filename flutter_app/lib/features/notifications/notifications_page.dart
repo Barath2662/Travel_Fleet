@@ -220,7 +220,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                         Chip(
                           label: Text(n.status.toUpperCase()),
                           backgroundColor: n.status == 'completed'
-                              ? theme.colorScheme.surfaceVariant
+                              ? theme.colorScheme.surfaceContainerHighest
                               : theme.colorScheme.primaryContainer,
                         ),
                       ],
