@@ -1,11 +1,13 @@
 const Notification = require('../models/Notification');
 const {
   ensureVehicleExpiryNotifications,
+  ensurePaymentNotifications,
 } = require('../services/notificationService');
 
 const getNotifications = async (req, res) => {
   if (req.user.role === 'owner' || req.user.role === 'employee') {
     await ensureVehicleExpiryNotifications({ userId: req.user._id });
+    await ensurePaymentNotifications({ userId: req.user._id });
   }
 
   const notifications = await Notification.find({ userId: req.user._id }).sort({ createdAt: -1 });

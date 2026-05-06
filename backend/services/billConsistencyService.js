@@ -103,6 +103,7 @@ const syncBillFromPayments = async ({ bill, payments, session }) => {
     billDoc.billCode = nextBillCode;
     billDoc.paidAmount = nextState.paidAmount;
     billDoc.remainingAmount = nextState.remainingAmount;
+    billDoc.balanceAmount = nextState.remainingAmount;
     billDoc.paymentStatus = nextState.paymentStatus;
     await billDoc.save({ session: safeSession });
   }

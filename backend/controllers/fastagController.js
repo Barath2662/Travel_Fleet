@@ -46,7 +46,7 @@ const requestFastag = async (req, res) => {
     type: 'fastag_request',
     relatedEntityId: request._id,
     title: 'FASTag Amount Pending',
-    message: `Driver reported FASTag usage for Trip #${trip._id}. Pending amount entry.`,
+    message: `Fastag amount pending for Trip #${trip._id}.`,
     meta: {
       tripId: trip._id,
       driverName: trip.driverId?.name,

@@ -1,6 +1,7 @@
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
+const Bill = require('../models/Bill');
 
 const getOwnerUser = async () => {
   return User.findOne({ role: 'owner' }).select('_id name email');
@@ -140,6 +141,38 @@ const ensureVehicleExpiryNotifications = async ({ userId, daysAhead = 30 }) => {
   }
 };
 
+const ensurePaymentNotifications = async ({ userId, overdueDays = 7 }) => {
+  const now = new Date();
+  const overdueThreshold = new Date();
+  overdueThreshold.setDate(overdueThreshold.getDate() - overdueDays);
+
+  const bills = await Bill.find({ paymentStatus: { $in: ['pending', 'partial'] } });
+  for (const bill of bills) {
+    const isOverdue = bill.billDate && new Date(bill.billDate) < overdueThreshold;
+    const type = isOverdue ? 'payment_overdue' : 'payment_pending';
+    const title = isOverdue ? 'Invoice Payment Overdue' : 'Payment Pending';
+    const message = isOverdue
+      ? `Invoice ${bill.billCode} is overdue. Remaining amount: ${Number(bill.remainingAmount || 0).toFixed(2)}.`
+      : `Payment pending for invoice ${bill.billCode}. Remaining amount: ${Number(bill.remainingAmount || 0).toFixed(2)}.`;
+
+    await findOrCreatePendingNotification({
+      userId,
+      assignedTo: userId,
+      type,
+      relatedEntityId: bill._id,
+      title,
+      message,
+      meta: {
+        billId: bill._id,
+        billCode: bill.billCode,
+        remainingAmount: bill.remainingAmount,
+        isOverdue,
+      },
+      actionRequired: true,
+    });
+  }
+};
+
 module.exports = {
   getOwnerUser,
   createNotification,
@@ -147,4 +180,5 @@ module.exports = {
   completeNotificationByEntity,
   completeNotificationsByFilter,
   ensureVehicleExpiryNotifications,
+  ensurePaymentNotifications,
 };

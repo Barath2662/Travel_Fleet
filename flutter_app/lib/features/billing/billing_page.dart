@@ -28,10 +28,20 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   final _vehicleNumber = TextEditingController();
   final _driverName = TextEditingController();
   final _distance = TextEditingController();
-  final _baseFare = TextEditingController(text: '0');
+  final _startTimeController = TextEditingController();
+  final _endTimeController = TextEditingController();
+  final _startKm = TextEditingController(text: '0');
+  final _endKm = TextEditingController(text: '0');
+  final _totalKm = TextEditingController(text: '0');
+  final _ratePerKm = TextEditingController(text: '0');
+  final _dayRent = TextEditingController(text: '0');
+  final _totalDays = TextEditingController(text: '0');
+  final _hourRate = TextEditingController(text: '0');
+  final _totalHours = TextEditingController(text: '0');
   final _driverBata = TextEditingController(text: '0');
   final _toll = TextEditingController(text: '0');
   final _permit = TextEditingController(text: '0');
+  final _parking = TextEditingController(text: '0');
   final _waiting = TextEditingController(text: '0');
   final _extra = TextEditingController(text: '0');
   final _fastag = TextEditingController(text: '0');
@@ -40,8 +50,13 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   final _total = TextEditingController(text: '0');
   final _gstAmount = TextEditingController(text: '0');
   final _finalAmount = TextEditingController(text: '0');
+  final _paidAmount = TextEditingController(text: '0');
+  final _balanceAmount = TextEditingController(text: '0');
   final _search = TextEditingController();
   DateTime? _filterDate;
+
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
 
   Timer? _debounce;
   TripModel? _cachedTrip;
@@ -58,10 +73,18 @@ class _BillingPageState extends ConsumerState<BillingPage> {
       await ref.read(appStateProvider.notifier).fetchTrips();
     });
     for (final controller in [
-      _baseFare,
+      _startKm,
+      _endKm,
+      _totalKm,
+      _ratePerKm,
+      _dayRent,
+      _totalDays,
+      _hourRate,
+      _totalHours,
       _driverBata,
       _toll,
       _permit,
+      _parking,
       _waiting,
       _extra,
       _fastag,
@@ -70,6 +93,8 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     ]) {
       controller.addListener(_recalculate);
     }
+    _startKm.addListener(_syncTotalKmFromStartEnd);
+    _endKm.addListener(_syncTotalKmFromStartEnd);
   }
 
   @override
@@ -83,10 +108,20 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     _vehicleNumber.dispose();
     _driverName.dispose();
     _distance.dispose();
-    _baseFare.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
+    _startKm.dispose();
+    _endKm.dispose();
+    _totalKm.dispose();
+    _ratePerKm.dispose();
+    _dayRent.dispose();
+    _totalDays.dispose();
+    _hourRate.dispose();
+    _totalHours.dispose();
     _driverBata.dispose();
     _toll.dispose();
     _permit.dispose();
+    _parking.dispose();
     _waiting.dispose();
     _extra.dispose();
     _fastag.dispose();
@@ -95,6 +130,8 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     _total.dispose();
     _gstAmount.dispose();
     _finalAmount.dispose();
+    _paidAmount.dispose();
+    _balanceAmount.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -127,6 +164,50 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   }
 
   String get _tripIdValue => _tripIdController?.text.trim() ?? '';
+  String _formatTime(TimeOfDay? time) {
+    if (time == null) return '-';
+    final now = TimeOfDay.now();
+    final resolved = TimeOfDay(hour: time.hour, minute: time.minute);
+    return resolved.format(context);
+  }
+
+  Future<void> _pickTime({required bool isStart}) async {
+    final current = isStart ? _startTime : _endTime;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: current ?? TimeOfDay.now(),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        _startTime = picked;
+        _startTimeController.text = _formatTime(picked);
+      } else {
+        _endTime = picked;
+        _endTimeController.text = _formatTime(picked);
+      }
+      _syncTotalHoursFromTimes();
+    });
+  }
+
+  void _syncTotalKmFromStartEnd() {
+    final start = double.tryParse(_startKm.text.trim());
+    final end = double.tryParse(_endKm.text.trim());
+    if (start == null || end == null) return;
+    final total = (end - start).clamp(0, 1000000);
+    _totalKm.text = total.toStringAsFixed(0);
+  }
+
+  void _syncTotalHoursFromTimes() {
+    if (_startTime == null || _endTime == null) return;
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day, _startTime!.hour, _startTime!.minute);
+    final end = DateTime(now.year, now.month, now.day, _endTime!.hour, _endTime!.minute);
+    final diff = end.difference(start).inMinutes;
+    final hours = diff > 0 ? diff / 60 : 0;
+    _totalHours.text = hours.toStringAsFixed(2);
+  }
+
 
   void _handleTripIdInput() {
     _onTripIdChanged(_tripIdValue);
@@ -206,13 +287,27 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     _driverName.text = trip.driverName ?? '-';
     final startKm = trip.startKm ?? 0;
     final endKm = trip.endKm ?? 0;
-    _distance.text = (endKm - startKm).clamp(0, 1000000).toString();
+    _startKm.text = startKm.toString();
+    _endKm.text = endKm.toString();
+    _totalKm.text = (endKm - startKm).clamp(0, 1000000).toString();
+    _distance.text = _totalKm.text;
+    _totalDays.text = trip.numberOfDays.toString();
     _driverBata.text = trip.driverBataAssigned.toStringAsFixed(2);
     _toll.text = trip.tollAmount.toStringAsFixed(2);
-    _permit.text = trip.permitAmount.toStringAsFixed(2);
-    _extra.text = trip.parkingAmount.toStringAsFixed(2);
+    _permit.text = (trip.permitCharges > 0 ? trip.permitCharges : trip.permitAmount).toStringAsFixed(2);
+    _parking.text = (trip.parkingCharges > 0 ? trip.parkingCharges : trip.parkingAmount).toStringAsFixed(2);
+    _extra.text = trip.extraCharges.toStringAsFixed(2);
     _fastag.text = trip.fastagAmount.toStringAsFixed(2);
-    _advance.text = trip.advanceTotal.toStringAsFixed(2);
+    _advance.text = (trip.totalAdvance > 0 ? trip.totalAdvance : trip.advanceTotal).toStringAsFixed(2);
+    if (trip.startTime != null) {
+      _startTime = TimeOfDay.fromDateTime(trip.startTime!);
+      _startTimeController.text = _formatTime(_startTime);
+    }
+    if (trip.endTime != null) {
+      _endTime = TimeOfDay.fromDateTime(trip.endTime!);
+      _endTimeController.text = _formatTime(_endTime);
+    }
+    _syncTotalHoursFromTimes();
     _tripStatus = trip.status;
     _recalculate();
   }
@@ -221,27 +316,51 @@ class _BillingPageState extends ConsumerState<BillingPage> {
     return double.tryParse(controller.text.trim()) ?? 0;
   }
 
+  String _displayPaymentStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return 'COMPLETED';
+      case 'partial':
+        return 'PARTIAL';
+      case 'pending':
+      default:
+        return status.toUpperCase();
+    }
+  }
+
   void _recalculate() {
     if (_isRecalculating) return;
     _isRecalculating = true;
 
-    final baseFare = _parse(_baseFare);
+    final totalKm = _parse(_totalKm);
+    final ratePerKm = _parse(_ratePerKm);
+    final dayRent = _parse(_dayRent);
+    final totalDays = _parse(_totalDays);
+    final hourRate = _parse(_hourRate);
+    final totalHours = _parse(_totalHours);
     final driverBata = _parse(_driverBata);
     final toll = _parse(_toll);
     final permit = _parse(_permit);
+    final parking = _parse(_parking);
     final waiting = _parse(_waiting);
     final extra = _parse(_extra);
     final fastag = _parse(_fastag);
     final advance = _parse(_advance);
+    final paid = _parse(_paidAmount);
     final gstPercent = _parse(_gstPercent);
 
-    final total = baseFare + driverBata + toll + permit + waiting + extra + fastag;
+    final kmCharge = totalKm * ratePerKm;
+    final dayCharge = totalDays * dayRent;
+    final hourCharge = totalHours * hourRate;
+    final total = kmCharge + dayCharge + hourCharge + toll + permit + parking + driverBata + waiting + extra + fastag;
     final gstAmount = total * (gstPercent / 100);
-    final finalAmount = total + gstAmount - advance;
+    final finalAmount = (total + gstAmount - advance).clamp(0, double.infinity);
+    final balance = (finalAmount - paid).clamp(0, double.infinity);
 
     _total.text = total.toStringAsFixed(2);
     _gstAmount.text = gstAmount.toStringAsFixed(2);
     _finalAmount.text = finalAmount.toStringAsFixed(2);
+    _balanceAmount.text = balance.toStringAsFixed(2);
 
     _isRecalculating = false;
   }
@@ -283,17 +402,33 @@ class _BillingPageState extends ConsumerState<BillingPage> {
         'vehicleNumber': _vehicleNumber.text.trim(),
         'driverName': _driverName.text.trim(),
         'tripStatus': _tripStatus,
-        'baseFare': _parse(_baseFare),
+        'startKm': _parse(_startKm),
+        'endKm': _parse(_endKm),
+        'totalKm': _parse(_totalKm),
+        'ratePerKm': _parse(_ratePerKm),
+        'dayRent': _parse(_dayRent),
+        'totalDays': _parse(_totalDays),
+        'numberOfDays': _parse(_totalDays),
+        'hourRent': _parse(_hourRate),
+        'totalHours': _parse(_totalHours),
+        'numberOfHours': _parse(_totalHours),
         'driverBata': _parse(_driverBata),
         'tollCharges': _parse(_toll),
         'permitCharges': _parse(_permit),
+        'parkingCharges': _parse(_parking),
         'waitingCharges': _parse(_waiting),
         'extraCharges': _parse(_extra),
         'fastagCharges': _parse(_fastag),
         'advanceReceived': _parse(_advance),
         'gstPercent': _parse(_gstPercent),
-        if (_cachedTrip?.startKm != null) 'startKm': _cachedTrip!.startKm,
-        if (_cachedTrip?.endKm != null) 'endKm': _cachedTrip!.endKm,
+        if (_startTime != null)
+          'startTime': DateTime.now()
+              .copyWith(hour: _startTime!.hour, minute: _startTime!.minute)
+              .toIso8601String(),
+        if (_endTime != null)
+          'endTime': DateTime.now()
+              .copyWith(hour: _endTime!.hour, minute: _endTime!.minute)
+              .toIso8601String(),
       };
 
       final bill = await ref.read(appStateProvider.notifier).createBill(payload);
@@ -457,7 +592,29 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                       SizedBox(width: 200, child: TextField(controller: _tripDate, enabled: false, decoration: const InputDecoration(labelText: 'Trip Date'))),
                       SizedBox(width: 200, child: TextField(controller: _vehicleNumber, decoration: const InputDecoration(labelText: 'Vehicle Number'))),
                       SizedBox(width: 200, child: TextField(controller: _driverName, decoration: const InputDecoration(labelText: 'Driver Name'))),
-                      SizedBox(width: 200, child: TextField(controller: _distance, enabled: false, decoration: const InputDecoration(labelText: 'Distance (KM)'))),
+                      SizedBox(width: 200, child: TextField(controller: _distance, enabled: false, decoration: const InputDecoration(labelText: 'Total KM'))),
+                      SizedBox(width: 200, child: _numberField(_startKm, 'Starting KM')),
+                      SizedBox(width: 200, child: _numberField(_endKm, 'Closing KM')),
+                      SizedBox(width: 200, child: _numberField(_totalKm, 'Total KM')),
+                      SizedBox(
+                        width: 200,
+                        child: TextField(
+                          readOnly: true,
+                          decoration: const InputDecoration(labelText: 'Start Time'),
+                          controller: _startTimeController,
+                          onTap: () => _pickTime(isStart: true),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 200,
+                        child: TextField(
+                          readOnly: true,
+                          decoration: const InputDecoration(labelText: 'End Time'),
+                          controller: _endTimeController,
+                          onTap: () => _pickTime(isStart: false),
+                        ),
+                      ),
+                      SizedBox(width: 200, child: _numberField(_totalHours, 'Total Hours')),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -467,10 +624,14 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                     runSpacing: 12,
                     spacing: 12,
                     children: [
-                      SizedBox(width: 200, child: _numberField(_baseFare, 'Base Fare')),
+                      SizedBox(width: 200, child: _numberField(_ratePerKm, 'Charge Per KM')),
+                      SizedBox(width: 200, child: _numberField(_dayRent, 'Day Rent')),
+                      SizedBox(width: 200, child: _numberField(_totalDays, 'Number of Days')),
+                      SizedBox(width: 200, child: _numberField(_hourRate, 'Charge Per Hour')),
                       SizedBox(width: 200, child: _numberField(_driverBata, 'Driver Bata')),
                       SizedBox(width: 200, child: _numberField(_toll, 'Toll Charges')),
                       SizedBox(width: 200, child: _numberField(_permit, 'Permit Charges')),
+                      SizedBox(width: 200, child: _numberField(_parking, 'Parking Charges')),
                       SizedBox(width: 200, child: _numberField(_waiting, 'Waiting Charges')),
                       SizedBox(width: 200, child: _numberField(_extra, 'Extra Charges')),
                       SizedBox(width: 200, child: _numberField(_fastag, 'FASTag Amount')),
@@ -478,7 +639,9 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                       SizedBox(width: 200, child: _numberField(_gstPercent, 'GST %')),
                       SizedBox(width: 200, child: _numberField(_total, 'Total', enabled: false)),
                       SizedBox(width: 200, child: _numberField(_gstAmount, 'GST Amount', enabled: false)),
-                      SizedBox(width: 200, child: _numberField(_finalAmount, 'Final Amount', enabled: false)),
+                      SizedBox(width: 200, child: _numberField(_finalAmount, 'Payable Amount', enabled: false)),
+                      SizedBox(width: 200, child: _numberField(_paidAmount, 'Paid Amount', enabled: false)),
+                      SizedBox(width: 200, child: _numberField(_balanceAmount, 'Balance', enabled: false)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -542,7 +705,7 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                   '${DateFormat.yMMMd().format(bill.billDate ?? DateTime.now())}',
                 ),
                 isThreeLine: true,
-                trailing: Chip(label: Text(bill.paymentStatus.toUpperCase())),
+                trailing: Chip(label: Text(_displayPaymentStatus(bill.paymentStatus))),
               ),
             ),
           ),

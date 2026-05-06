@@ -305,6 +305,19 @@ class AppStateNotifier extends StateNotifier<AppState> {
     }
   }
 
+  Future<void> updatePayment(String id, Map<String, dynamic> payload) async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      await ref.read(apiServiceProvider).put('/payment/$id', payload, token: token);
+      state = state.copyWith(loading: false);
+      await fetchBills();
+      await fetchPayments();
+    } catch (error) {
+      state = state.copyWith(loading: false, error: _toMessage(error));
+      rethrow;
+    }
+  }
+
   Future<void> applyDriverLeave(String id, {required DateTime from, required DateTime to, required String reason}) async {
     await _post('/driver/$id/leave', {
       'from': from.toIso8601String(),

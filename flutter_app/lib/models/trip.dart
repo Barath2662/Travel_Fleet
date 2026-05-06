@@ -9,12 +9,20 @@ class TripModel {
   final DateTime? pickupDateTime;
   final String? driverName;
   final String? vehicleNumber;
+  final DateTime? startTime;
+  final DateTime? endTime;
   final int? startKm;
   final int? endKm;
   final double tollAmount;
   final double permitAmount;
+  final double permitCharges;
   final double parkingAmount;
+  final double parkingCharges;
   final double fastagAmount;
+  final double extraCharges;
+  final double bookingAdvance;
+  final double driverAdvance;
+  final double totalAdvance;
   final String? tripNotes;
   final double driverBataAssigned;
   final double advanceTotal;
@@ -31,12 +39,20 @@ class TripModel {
     this.pickupDateTime,
     this.driverName,
     this.vehicleNumber,
+    this.startTime,
+    this.endTime,
     this.startKm,
     this.endKm,
     this.tollAmount = 0,
     this.permitAmount = 0,
+    this.permitCharges = 0,
     this.parkingAmount = 0,
+    this.parkingCharges = 0,
     this.fastagAmount = 0,
+    this.extraCharges = 0,
+    this.bookingAdvance = 0,
+    this.driverAdvance = 0,
+    this.totalAdvance = 0,
     this.tripNotes,
     this.driverBataAssigned = 0,
     this.advanceTotal = 0,
@@ -72,12 +88,20 @@ class TripModel {
       vehicleNumber: vehicleRaw is Map<String, dynamic>
           ? (vehicleRaw['number'] as String?)
           : null,
+        startTime: json['startTime'] != null ? DateTime.tryParse(json['startTime'].toString()) : null,
+        endTime: json['endTime'] != null ? DateTime.tryParse(json['endTime'].toString()) : null,
       startKm: (json['startKm'] as num?)?.toInt(),
       endKm: (json['endKm'] as num?)?.toInt(),
       tollAmount: (json['tollAmount'] as num?)?.toDouble() ?? 0,
       permitAmount: (json['permitAmount'] as num?)?.toDouble() ?? 0,
+      permitCharges: (json['permitCharges'] as num?)?.toDouble() ?? 0,
       parkingAmount: (json['parkingAmount'] as num?)?.toDouble() ?? 0,
+      parkingCharges: (json['parkingCharges'] as num?)?.toDouble() ?? 0,
       fastagAmount: (json['fastagAmount'] as num?)?.toDouble() ?? 0,
+      extraCharges: (json['extraCharges'] as num?)?.toDouble() ?? 0,
+      bookingAdvance: (json['bookingAdvance'] as num?)?.toDouble() ?? 0,
+      driverAdvance: (json['driverAdvance'] as num?)?.toDouble() ?? 0,
+      totalAdvance: (json['totalAdvance'] as num?)?.toDouble() ?? 0,
       tripNotes: json['tripNotes'] as String?,
       driverBataAssigned: (json['driverBataAssigned'] as num?)?.toDouble() ?? 0,
       advanceTotal: (json['advanceTotal'] as num?)?.toDouble() ?? 0,

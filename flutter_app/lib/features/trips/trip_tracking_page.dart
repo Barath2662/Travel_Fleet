@@ -35,6 +35,9 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   late TextEditingController _tollController;
   late TextEditingController _permitController;
   late TextEditingController _parkingController;
+  late TextEditingController _driverBataController;
+  late TextEditingController _extraChargesController;
+  late TextEditingController _advanceController;
   loc.LocationData? _currentPosition;
   LatLng? _liveLocation;
   final List<LatLng> _routePoints = [];
@@ -58,6 +61,9 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     _tollController = TextEditingController(text: '0');
     _permitController = TextEditingController(text: '0');
     _parkingController = TextEditingController(text: '0');
+    _driverBataController = TextEditingController(text: widget.trip.driverBataAssigned.toStringAsFixed(2));
+    _extraChargesController = TextEditingController(text: widget.trip.extraCharges.toStringAsFixed(2));
+    _advanceController = TextEditingController(text: '0');
 
     if (isMobilePlatform && widget.trip.status == 'in_progress') {
       final token = ref.read(authProvider).token ?? '';
@@ -89,6 +95,9 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     _tollController.dispose();
     _permitController.dispose();
     _parkingController.dispose();
+    _driverBataController.dispose();
+    _extraChargesController.dispose();
+    _advanceController.dispose();
     _trackingSubscription?.cancel();
     super.dispose();
   }
@@ -198,7 +207,6 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   }
 
   Future<void> _endTrip() async {
-    final role = ref.read(authProvider).role;
     if (_endKmController.text.trim().isEmpty) {
       _show('Please enter ending KM');
       return;
@@ -212,10 +220,9 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      final isDriver = role == 'driver';
-      final tollApplicable = isDriver ? false : _tollApplicable;
-      final permitApplicable = isDriver ? false : _permitApplicable;
-      final parkingApplicable = isDriver ? false : _parkingApplicable;
+      final tollApplicable = _tollApplicable;
+      final permitApplicable = _permitApplicable;
+      final parkingApplicable = _parkingApplicable;
       await ref.read(appStateProvider.notifier).endTrip(widget.tripId, {
         'endKm': endKm,
         'tollApplicable': tollApplicable,
@@ -225,6 +232,9 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
         'tollAmount': tollApplicable ? (double.tryParse(_tollController.text.trim()) ?? 0) : 0,
         'permitAmount': permitApplicable ? (double.tryParse(_permitController.text.trim()) ?? 0) : 0,
         'parkingAmount': parkingApplicable ? (double.tryParse(_parkingController.text.trim()) ?? 0) : 0,
+        'driverBata': double.tryParse(_driverBataController.text.trim()) ?? 0,
+        'extraCharges': double.tryParse(_extraChargesController.text.trim()) ?? 0,
+        'advanceAmount': double.tryParse(_advanceController.text.trim()) ?? 0,
         'fastagAmount': 0,
         'tripNotes': _notesController.text.trim(),
       });
@@ -237,11 +247,32 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
     }
   }
 
+  Future<void> _confirmAndEndTrip() async {
+    if (_isSubmitting) return;
+
+    final applicable = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Is FASTag Applicable?'),
+        content: const Text('Please confirm FASTag usage for this trip.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+        ],
+      ),
+    );
+
+    if (applicable == null) return;
+
+    setState(() => _fastagApplicable = applicable);
+    await _endTrip();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final role = ref.watch(authProvider).role;
-    final showExpenseFields = role != 'driver';
+    final showExpenseFields = true;
     final isTripsActive = widget.trip.status == 'in_progress';
     final isTripsScheduled = widget.trip.status == 'scheduled';
     final now = DateTime.now();
@@ -644,6 +675,11 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                       ),
                       const SizedBox(height: 12),
                       if (showExpenseFields) ...[
+                        TextField(
+                          controller: _driverBataController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Driver Bata'),
+                        ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: _tollApplicable,
@@ -680,13 +716,17 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: const InputDecoration(labelText: 'Parking Amount'),
                           ),
+                        TextField(
+                          controller: _extraChargesController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Extra Charges'),
+                        ),
+                        TextField(
+                          controller: _advanceController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Advance Collected'),
+                        ),
                       ],
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _fastagApplicable,
-                        onChanged: (value) => setState(() => _fastagApplicable = value),
-                        title: const Text('FASTag Applicable'),
-                      ),
                       const SizedBox(height: 12),
                       // Location Button
                       SizedBox(
@@ -714,7 +754,7 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _isSubmitting ? null : _endTrip,
+                          onPressed: _isSubmitting ? null : _confirmAndEndTrip,
                           icon: _isSubmitting
                               ? const SizedBox(
                                   width: 20,

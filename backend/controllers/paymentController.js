@@ -9,6 +9,8 @@ const paymentValidation = [
   body('status').optional().isIn(['pending', 'paid']),
   body('mode').optional().isIn(['partial', 'full', 'remaining']),
   body('idempotencyKey').optional().isString(),
+  body('paymentMethod').optional().isString(),
+  body('paymentDate').optional().isISO8601(),
 ];
 
 const runWithOptionalTransaction = async (session, work) => {
@@ -24,7 +26,7 @@ const runWithOptionalTransaction = async (session, work) => {
 };
 
 const createPayment = async (req, res) => {
-  const { billId, amount, notes, idempotencyKey } = req.body;
+  const { billId, amount, notes, idempotencyKey, paymentMethod, paymentDate } = req.body;
 
   const session = await Payment.startSession();
   let paymentDoc = null;
@@ -74,10 +76,13 @@ const createPayment = async (req, res) => {
           {
             billId,
             amount: requestedAmount,
+            paymentAmount: requestedAmount,
             status: 'paid',
             notes,
             idempotencyKey,
-            paidAt: new Date(),
+            paidAt: paymentDate ? new Date(paymentDate) : new Date(),
+            paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+            paymentMethod,
             updatedBy: req.user._id,
           },
         ],
@@ -88,6 +93,10 @@ const createPayment = async (req, res) => {
         ? await Bill.findById(billId).session(session)
         : await Bill.findById(billId);
       updatedBillDoc = await syncBillFromPayments({ bill: scopedBill, session });
+      if (updatedBillDoc) {
+        paymentDoc.remainingBalance = Number(updatedBillDoc.remainingAmount || 0);
+        await paymentDoc.save({ session: session.inTransaction() ? session : undefined });
+      }
     });
   } finally {
     await session.endSession();
@@ -135,6 +144,11 @@ const updatePayment = async (req, res) => {
     throw new Error('Payment amount must be greater than 0');
   }
 
+  if (req.body.paymentDate !== undefined && Number.isNaN(new Date(req.body.paymentDate).getTime())) {
+    res.status(400);
+    throw new Error('Invalid payment date');
+  }
+
   const bill = await Bill.findById(payment.billId);
   if (!bill) {
     res.status(404);
@@ -150,11 +164,25 @@ const updatePayment = async (req, res) => {
     throw new Error(`Updated amount exceeds remaining allowable amount (${maxAllowed.toFixed(2)})`);
   }
 
-  Object.assign(payment, {
-    ...req.body,
-    amount: req.body.amount !== undefined ? Number(req.body.amount) : payment.amount,
-    status: 'paid',
+  payment.editHistory.push({
+    amount: payment.amount,
+    paymentDate: payment.paymentDate || payment.paidAt,
+    paymentMethod: payment.paymentMethod,
+    notes: payment.notes,
+    updatedBy: req.user._id,
   });
+
+  Object.assign(payment, {
+    amount: req.body.amount !== undefined ? Number(req.body.amount) : payment.amount,
+    paymentAmount: req.body.amount !== undefined ? Number(req.body.amount) : payment.paymentAmount,
+    status: 'paid',
+    paymentMethod: req.body.paymentMethod ?? payment.paymentMethod,
+    notes: req.body.notes ?? payment.notes,
+  });
+  if (req.body.paymentDate !== undefined) {
+    payment.paymentDate = new Date(req.body.paymentDate);
+    payment.paidAt = payment.paymentDate;
+  }
   payment.updatedBy = req.user._id;
   payment.paidAt = payment.paidAt || new Date();
 
@@ -167,6 +195,10 @@ const updatePayment = async (req, res) => {
         ? await Bill.findById(payment.billId).session(session)
         : await Bill.findById(payment.billId);
       updatedBillDoc = await syncBillFromPayments({ bill: scopedBill, session });
+      if (updatedBillDoc) {
+        payment.remainingBalance = Number(updatedBillDoc.remainingAmount || 0);
+        await payment.save({ session: session.inTransaction() ? session : undefined });
+      }
     });
   } finally {
     await session.endSession();

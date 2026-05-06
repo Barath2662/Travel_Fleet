@@ -17,6 +17,7 @@ const tripValidation = [
   body('numberOfDays').isInt({ min: 1 }),
   body('driverId').isMongoId(),
   body('vehicleId').isMongoId(),
+  body('bookingAdvance').optional().isFloat({ min: 0 }),
 ];
 
 const assignBataValidation = [body('amount').isFloat({ min: 0 })];
@@ -30,6 +31,9 @@ const endTripValidation = [
   body('tollAmount').optional().isFloat({ min: 0 }),
   body('permitAmount').optional().isFloat({ min: 0 }),
   body('parkingAmount').optional().isFloat({ min: 0 }),
+  body('extraCharges').optional().isFloat({ min: 0 }),
+  body('driverBata').optional().isFloat({ min: 0 }),
+  body('advanceAmount').optional().isFloat({ min: 0 }),
   body('fastagAmount').optional().isFloat({ min: 0 }),
   body('tripNotes').optional().isString(),
   body('routePoints').optional().isArray(),
@@ -64,7 +68,11 @@ const hasLeaveOverlap = (leaves, fromDate, toDate, statuses = ['pending', 'appro
 };
 
 const sumTripAdvances = (trip) => {
-  if (!trip || !Array.isArray(trip.advances)) return 0;
+  if (!trip) return 0;
+  if (trip.totalAdvance !== undefined) {
+    return toNumber(trip.totalAdvance);
+  }
+  if (!Array.isArray(trip.advances)) return 0;
   return trip.advances.reduce((total, item) => total + toNumber(item.amount), 0);
 };
 
@@ -116,6 +124,7 @@ const createTrip = async (req, res) => {
   const defaultBata = rate ? Number(rate.amount) : 0;
 
   const dayCount = Math.max(toNumber(payload.numberOfDays, 1), 1);
+  const bookingAdvance = Math.max(toNumber(payload.bookingAdvance), 0);
   const trip = await Trip.create({
     ...payload,
     numberOfDays: dayCount,
@@ -123,8 +132,21 @@ const createTrip = async (req, res) => {
     driverBataAssigned: defaultBata * dayCount,
     driverBataAssignedBy: req.user._id,
     driverBataAssignedAt: new Date(),
+    bookingAdvance,
+    driverAdvance: 0,
+    totalAdvance: bookingAdvance,
     createdBy: req.user._id,
   });
+
+  if (bookingAdvance > 0) {
+    trip.advances.push({
+      amount: bookingAdvance,
+      source: 'booking',
+      addedByRole: req.user.role,
+      addedBy: req.user._id,
+    });
+    await trip.save();
+  }
 
   res.status(201).json(trip);
 };
@@ -341,7 +363,9 @@ const endTrip = async (req, res) => {
     tollAmount,
     permitAmount,
     parkingAmount,
-    fastagAmount,
+    extraCharges,
+    driverBata,
+    advanceAmount,
     tripNotes,
     routePoints,
   } = req.body;
@@ -397,8 +421,14 @@ const endTrip = async (req, res) => {
       lockedTrip.fastagApplicable = Boolean(fastagApplicable);
       lockedTrip.tollAmount = Math.max(toNumber(tollAmount), 0);
       lockedTrip.permitAmount = Math.max(toNumber(permitAmount), 0);
+      lockedTrip.permitCharges = lockedTrip.permitAmount;
       lockedTrip.parkingAmount = Math.max(toNumber(parkingAmount), 0);
-      lockedTrip.fastagAmount = Math.max(toNumber(fastagAmount), 0);
+      lockedTrip.parkingCharges = lockedTrip.parkingAmount;
+      lockedTrip.extraCharges = Math.max(toNumber(extraCharges), 0);
+      lockedTrip.fastagAmount = 0;
+      if (driverBata !== undefined) {
+        lockedTrip.driverBataAssigned = Math.max(toNumber(driverBata), 0);
+      }
       if (typeof tripNotes === 'string') {
         lockedTrip.tripNotes = tripNotes.trim();
       }
@@ -451,6 +481,18 @@ const endTrip = async (req, res) => {
     await session.endSession();
   }
 
+  if (completedTrip && Number(advanceAmount) > 0) {
+    completedTrip.advances.push({
+      amount: Number(advanceAmount),
+      source: 'driver',
+      addedByRole: req.user.role,
+      addedBy: req.user._id,
+    });
+    completedTrip.driverAdvance = Math.max(toNumber(completedTrip.driverAdvance) + Number(advanceAmount), 0);
+    completedTrip.totalAdvance = Math.max(toNumber(completedTrip.bookingAdvance) + toNumber(completedTrip.driverAdvance), 0);
+    await completedTrip.save();
+  }
+
   if (completedTrip && completedTrip.fastagApplicable) {
     const owner = await getOwnerUser();
     if (owner) {
@@ -460,7 +502,7 @@ const endTrip = async (req, res) => {
         driverId: completedTrip.driverId,
         ownerId: owner._id,
         applicable: true,
-        amount: Math.max(toNumber(completedTrip.fastagAmount), 0),
+        amount: 0,
       });
 
       if (!existing) {
@@ -470,7 +512,7 @@ const endTrip = async (req, res) => {
           type: 'fastag_request',
           relatedEntityId: request._id,
           title: 'FASTag Amount Pending',
-          message: `Driver reported FASTag usage for Trip #${completedTrip._id}. Pending amount entry.`,
+          message: `Fastag amount pending for Trip #${completedTrip._id}.`,
           meta: {
             tripId: completedTrip._id,
             driverId: completedTrip.driverId,
@@ -486,7 +528,7 @@ const endTrip = async (req, res) => {
 };
 
 const addAdvance = async (req, res) => {
-  const { amount } = req.body;
+  const { amount, source } = req.body;
   if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
     res.status(400);
     throw new Error('Advance amount must be a positive number');
@@ -505,11 +547,20 @@ const addAdvance = async (req, res) => {
     throw new Error('You can only manage your own assigned trips');
   }
 
+  const resolvedSource = ['booking', 'driver', 'other'].includes(source) ? source : 'driver';
   trip.advances.push({
     amount: Number(amount),
+    source: resolvedSource,
     addedByRole: req.user.role,
     addedBy: req.user._id,
   });
+
+  if (resolvedSource === 'booking') {
+    trip.bookingAdvance = Math.max(toNumber(trip.bookingAdvance) + Number(amount), 0);
+  } else {
+    trip.driverAdvance = Math.max(toNumber(trip.driverAdvance) + Number(amount), 0);
+  }
+  trip.totalAdvance = Math.max(toNumber(trip.bookingAdvance) + toNumber(trip.driverAdvance), 0);
 
   await trip.save();
 
@@ -517,7 +568,8 @@ const addAdvance = async (req, res) => {
   if (bill) {
     const advanceTotal = sumTripAdvances(trip);
     bill.advanceReceived = Math.max(advanceTotal, 0);
-    bill.payableAmount = Math.max(Number(bill.totalAmount || 0) - bill.advanceReceived, 0);
+    bill.payableAmount = Math.max(Number(bill.totalAmount || 0) + Number(bill.gstAmount || 0) - bill.advanceReceived, 0);
+    bill.finalAmount = bill.payableAmount;
     await bill.save();
     await syncBillFromPayments({ bill });
   }

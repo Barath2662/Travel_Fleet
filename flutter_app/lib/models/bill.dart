@@ -10,6 +10,15 @@ class BillModel {
   final String? dropLocation;
   final String? tripStatus;
   final double baseFare;
+  final double ratePerKm;
+  final double kmCharge;
+  final double dayRent;
+  final double dayCharge;
+  final double hourRent;
+  final double hourCharge;
+  final double totalKm;
+  final double totalHours;
+  final double totalDays;
   final double totalAmount;
   final double gstPercent;
   final double gstAmount;
@@ -21,6 +30,7 @@ class BillModel {
   final double fastagCharges;
   final double paidAmount;
   final double remainingAmount;
+  final double balanceAmount;
   final String paymentStatus;
 
   const BillModel({
@@ -35,6 +45,15 @@ class BillModel {
     this.dropLocation,
     this.tripStatus,
     this.baseFare = 0,
+    this.ratePerKm = 0,
+    this.kmCharge = 0,
+    this.dayRent = 0,
+    this.dayCharge = 0,
+    this.hourRent = 0,
+    this.hourCharge = 0,
+    this.totalKm = 0,
+    this.totalHours = 0,
+    this.totalDays = 0,
     required this.totalAmount,
     this.gstPercent = 0,
     this.gstAmount = 0,
@@ -46,6 +65,7 @@ class BillModel {
     this.fastagCharges = 0,
     required this.paidAmount,
     required this.remainingAmount,
+    this.balanceAmount = 0,
     required this.paymentStatus,
   });
 
@@ -73,6 +93,15 @@ class BillModel {
       dropLocation: json['dropLocation'] as String?,
       tripStatus: json['tripStatus'] as String?,
       baseFare: (json['baseFare'] as num?)?.toDouble() ?? 0,
+      ratePerKm: (json['ratePerKm'] as num?)?.toDouble() ?? 0,
+      kmCharge: (json['kmCharge'] as num?)?.toDouble() ?? 0,
+      dayRent: (json['dayRent'] as num?)?.toDouble() ?? 0,
+      dayCharge: (json['dayCharge'] as num?)?.toDouble() ?? 0,
+      hourRent: (json['hourRent'] as num?)?.toDouble() ?? 0,
+      hourCharge: (json['hourCharge'] as num?)?.toDouble() ?? 0,
+      totalKm: (json['totalKm'] as num?)?.toDouble() ?? 0,
+      totalHours: (json['totalHours'] as num?)?.toDouble() ?? 0,
+      totalDays: (json['totalDays'] as num?)?.toDouble() ?? 0,
       totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
       gstPercent: (json['gstPercent'] as num?)?.toDouble() ?? 0,
       gstAmount: (json['gstAmount'] as num?)?.toDouble() ?? 0,
@@ -84,6 +113,7 @@ class BillModel {
       fastagCharges: (json['fastagCharges'] as num?)?.toDouble() ?? 0,
       paidAmount: (json['paidAmount'] as num?)?.toDouble() ?? 0,
       remainingAmount: (json['remainingAmount'] as num?)?.toDouble() ?? 0,
+      balanceAmount: (json['balanceAmount'] as num?)?.toDouble() ?? 0,
       paymentStatus: json['paymentStatus'] as String? ?? 'pending',
     );
   }

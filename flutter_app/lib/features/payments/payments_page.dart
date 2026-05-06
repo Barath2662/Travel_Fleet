@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/payment.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -122,8 +123,104 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     );
   }
 
+  Future<void> _editPayment(PaymentModel payment) async {
+    final amountController = TextEditingController(text: payment.amount.toStringAsFixed(2));
+    final notesController = TextEditingController(text: payment.notes ?? '');
+    final methodController = TextEditingController(text: payment.paymentMethod ?? '');
+    DateTime? paymentDate = payment.paymentDate ?? payment.paidAt;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Amount Received'),
+              ),
+              TextField(
+                controller: methodController,
+                decoration: const InputDecoration(labelText: 'Payment Method'),
+              ),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(labelText: 'Notes'),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      paymentDate == null
+                          ? 'Payment Date: Not set'
+                          : 'Payment Date: ${DateFormat.yMMMd().format(paymentDate!)}',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: paymentDate ?? now,
+                        firstDate: DateTime(now.year - 3),
+                        lastDate: DateTime(now.year + 3),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => paymentDate = picked);
+                      }
+                    },
+                    child: const Text('Pick Date'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+          ],
+        ),
+      ),
+    );
+
+    if (result != true) return;
+    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+    if (amount <= 0) {
+      _show('Enter a valid amount');
+      return;
+    }
+
+    try {
+      await ref.read(appStateProvider.notifier).updatePayment(payment.id, {
+        'amount': amount,
+        'paymentMethod': methodController.text.trim(),
+        'notes': notesController.text.trim(),
+        if (paymentDate != null) 'paymentDate': paymentDate!.toIso8601String(),
+      });
+      _show('Payment updated');
+    } catch (error) {
+      _show(error.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   void _show(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _displayPaymentStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return 'COMPLETED';
+      case 'partial':
+        return 'PARTIAL';
+      case 'pending':
+      default:
+        return status.toUpperCase();
+    }
   }
 
   String _paymentBillLabel(String? billCode, String billId) {
@@ -176,7 +273,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   const SizedBox(height: 8),
                   Text(
                     canManagePayments
-                        ? 'Use actions on each bill to mark paid, add partial payment, or pay remaining.'
+                    ? 'Use actions on each bill to mark completed, add partial payment, or pay remaining.'
                         : 'You can view payment progress. Payment actions are restricted to owner role.',
                   ),
                   const SizedBox(height: 12),
@@ -196,7 +293,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                       DropdownMenuItem(value: 'all', child: Text('All')),
                       DropdownMenuItem(value: 'pending', child: Text('Pending')),
                       DropdownMenuItem(value: 'partial', child: Text('Partial')),
-                      DropdownMenuItem(value: 'paid', child: Text('Paid')),
+                      DropdownMenuItem(value: 'paid', child: Text('Completed')),
                     ],
                     onChanged: (value) => setState(() => _statusFilter = value ?? 'all'),
                   ),
@@ -236,7 +333,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        Chip(label: Text(bill.paymentStatus.toUpperCase())),
+                        Chip(label: Text(_displayPaymentStatus(bill.paymentStatus))),
                         const Spacer(),
                         if (canManagePayments && bill.remainingAmount > 0)
                           OutlinedButton(
@@ -248,7 +345,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                       mode: bill.paymentStatus == 'partial' ? 'remaining' : 'full',
                                       note: 'Settlement from app',
                                     ),
-                            child: Text(bill.paymentStatus == 'partial' ? 'Pay Remaining' : 'Mark as Paid'),
+                            child: Text(bill.paymentStatus == 'partial' ? 'Pay Remaining' : 'Mark as Completed'),
                           ),
                       ],
                     ),
@@ -272,7 +369,12 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
               child: ListTile(
                 title: Text('${_paymentBillLabel(p.billCode, p.billId)} • ${p.amount.toStringAsFixed(2)}'),
                 subtitle: Text('${p.customerName ?? 'Customer'} • ${p.paidAt != null ? DateFormat.yMMMd().add_jm().format(p.paidAt!) : 'No date'}'),
-                trailing: Chip(label: Text(p.status.toUpperCase())),
+                trailing: canManagePayments
+                    ? IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _editPayment(p),
+                      )
+                    : Chip(label: Text(_displayPaymentStatus(p.status))),
               ),
             ),
           ),

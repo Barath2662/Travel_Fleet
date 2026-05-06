@@ -23,6 +23,7 @@ const generateInvoicePdf = async (bill) => {
     const margin = doc.page.margins.left;
     const contentWidth = pageWidth - margin * 2;
     const formatDate = (value) => new Date(value).toLocaleDateString();
+    const formatTime = (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const headerTop = margin;
     const rightBoxWidth = 190;
@@ -97,22 +98,31 @@ const generateInvoicePdf = async (bill) => {
 
     drawRow('Details', 'Amount', { isHeader: true });
     drawRow('Time & KM Details', '', { isSection: true });
-    drawRow('Start KM', `${bill.startKm}`);
-    drawRow('End KM', `${bill.endKm}`);
+    drawRow('Starting KM', `${bill.startKm}`);
+    drawRow('Closing KM', `${bill.endKm}`);
     drawRow('Total KM', `${bill.totalKm}`);
-    drawRow('Rate / KM', currency(bill.ratePerKm));
+    drawRow('Starting Time', bill.startTime ? formatTime(bill.startTime) : '-');
+    drawRow('Closing Time', bill.endTime ? formatTime(bill.endTime) : '-');
+    drawRow('Total Hours', `${bill.totalHours || bill.numberOfHours || 0}`);
+    drawRow('Charge Per KM', currency(bill.ratePerKm));
     drawRow('KM Charge', currency(bill.kmCharge));
+    drawRow('Charge Per Hour', currency(bill.hourRent));
+    drawRow('Hour Charge', currency(bill.hourCharge || 0));
+    drawRow('Days', `${bill.totalDays || bill.numberOfDays || 0}`);
+    drawRow('Day Rent', currency(bill.dayRent));
+    drawRow('Day Charge', currency(bill.dayCharge || 0));
     drawRow('Charges', '', { isSection: true });
-    drawRow('Base Fare', currency(bill.baseFare || (bill.dayRent || 0) + (bill.hourRent || 0)));
+    drawRow('Base Fare', currency(bill.baseFare || 0));
     drawRow('Driver Bata', currency(bill.driverBata));
     drawRow('Toll', currency(bill.tollCharges));
     drawRow('Permit', currency(bill.permitCharges));
+    drawRow('Parking', currency(bill.parkingCharges || 0));
     drawRow('Waiting', currency(bill.waitingCharges));
     drawRow('Extra Charges', currency(bill.extraCharges));
     drawRow('FASTag', currency(bill.fastagCharges));
     drawRow('SUBTOTAL', currency(bill.totalAmount), { isBold: true });
     drawRow('GST', currency(bill.gstAmount || 0));
-    drawRow('Advance Received', currency(bill.advanceReceived));
+    drawRow('Advance Deduction', currency(bill.advanceReceived));
     drawRow('PAYABLE', currency(bill.payableAmount || bill.finalAmount), { isBold: true });
 
     const footerTop = rowY + 16;
