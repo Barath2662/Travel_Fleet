@@ -166,7 +166,6 @@ class _BillingPageState extends ConsumerState<BillingPage> {
   String get _tripIdValue => _tripIdController?.text.trim() ?? '';
   String _formatTime(TimeOfDay? time) {
     if (time == null) return '-';
-    final now = TimeOfDay.now();
     final resolved = TimeOfDay(hour: time.hour, minute: time.minute);
     return resolved.format(context);
   }

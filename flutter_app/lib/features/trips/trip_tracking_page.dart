@@ -271,7 +271,6 @@ class _TripTrackingPageState extends ConsumerState<TripTrackingPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final role = ref.watch(authProvider).role;
     final showExpenseFields = true;
     final isTripsActive = widget.trip.status == 'in_progress';
     final isTripsScheduled = widget.trip.status == 'scheduled';
